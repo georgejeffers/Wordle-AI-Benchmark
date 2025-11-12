@@ -1,9 +1,74 @@
 // AI SDK integration layer for running model inference
 
-import { streamText } from "ai"
 import type { ModelConfig, Clue, ClueAttempt } from "./types"
 import { generatePrompt } from "./prompts"
 import { normalizeAnswer, validateFormat, checkCorrectness } from "./scoring"
+
+// Lazy load AI SDK to avoid Bun regex compatibility issues
+// Use require() for runtime loading to bypass Next.js bundling analysis
+function getProviderAndModel(modelString: string) {
+  const parts = modelString.split("/")
+  const providerName = parts[0]
+  const modelName = parts.slice(1).join("/") // Handle nested paths like deepinfra/meta-llama/...
+  
+  // Use require() instead of import() to avoid Next.js analyzing the code
+  // @ts-ignore - require() is needed to bypass Next.js static analysis
+  if (providerName === "openai") {
+    // @ts-ignore
+    const { createOpenAI } = require("@ai-sdk/openai")
+    // @ts-ignore
+    const { streamText } = require("ai")
+    const openai = createOpenAI()
+    return { streamText, model: openai(modelName) }
+  } else if (providerName === "anthropic") {
+    // @ts-ignore
+    const { createAnthropic } = require("@ai-sdk/anthropic")
+    // @ts-ignore
+    const { streamText } = require("ai")
+    const anthropic = createAnthropic()
+    return { streamText, model: anthropic(modelName) }
+  } else if (providerName === "groq") {
+    // @ts-ignore
+    const { createGroq } = require("@ai-sdk/groq")
+    // @ts-ignore
+    const { streamText } = require("ai")
+    const groq = createGroq()
+    return { streamText, model: groq(modelName) }
+  } else if (providerName === "xai") {
+    // @ts-ignore
+    const { createXai } = require("@ai-sdk/xai")
+    // @ts-ignore
+    const { streamText } = require("ai")
+    const xai = createXai()
+    return { streamText, model: xai(modelName) }
+  } else if (providerName === "google") {
+    // @ts-ignore
+    const { createGoogleGenerativeAI } = require("@ai-sdk/google")
+    // @ts-ignore
+    const { streamText } = require("ai")
+    const google = createGoogleGenerativeAI()
+    return { streamText, model: google(modelName) }
+  } else if (providerName === "mistral") {
+    // @ts-ignore
+    const { createMistral } = require("@ai-sdk/mistral")
+    // @ts-ignore
+    const { streamText } = require("ai")
+    const mistral = createMistral()
+    return { streamText, model: mistral(modelName) }
+  } else if (providerName === "deepinfra") {
+    // DeepInfra uses OpenAI-compatible API
+    // @ts-ignore
+    const { createOpenAICompatible } = require("@ai-sdk/openai-compatible")
+    // @ts-ignore
+    const { streamText } = require("ai")
+    const deepinfra = createOpenAICompatible({
+      baseURL: "https://api.deepinfra.com/v1/openai",
+      apiKey: process.env.DEEPINFRA_API_KEY || process.env.OPENAI_API_KEY,
+    })
+    return { streamText, model: deepinfra(modelName) }
+  }
+  throw new Error(`Unknown provider for model: ${modelString}`)
+}
 
 export interface RunClueParams {
   raceId: string
@@ -42,26 +107,69 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
     const prompt = generatePrompt(clue, mode)
     console.log(`[v0] Generated prompt for ${model.id}:`, prompt.substring(0, 200))
 
-    // Set up timeout
+    // Set up timeout with proper error handling
+    let timeoutId: NodeJS.Timeout | undefined
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Timeout")), timeoutMs)
+      timeoutId = setTimeout(() => reject(new Error("Timeout")), timeoutMs)
     })
 
     let result
+    let streamPromise: Promise<any> | undefined
     try {
       console.log(`[v0] Calling streamText for ${model.id}...`)
+      const { streamText: streamTextFn, model: modelInstance } = getProviderAndModel(model.modelString)
+      
+      // Determine provider from model string
+      const providerName = model.modelString.split("/")[0]
+      
+      const streamTextOptions: any = {
+        model: modelInstance,
+        prompt,
+      }
+      
+      // Anthropic models don't allow both temperature and topP
+      // Use only temperature for Anthropic, both for others
+      if (providerName === "anthropic") {
+        streamTextOptions.temperature = model.temperature ?? 0.1
+        // Don't set topP for Anthropic models
+      } else {
+        streamTextOptions.temperature = model.temperature ?? 0.1
+        streamTextOptions.topP = model.topP ?? 1
+      }
+      
+      if (maxTokens !== undefined) {
+        streamTextOptions.maxTokens = maxTokens
+      }
+      
+      streamPromise = streamTextFn(streamTextOptions)
+      
       result = await Promise.race([
-        streamText({
-          model: model.modelString,
-          prompt,
-          temperature: model.temperature ?? 0.1,
-          topP: model.topP ?? 1,
-          maxTokens,
-        }),
+        streamPromise,
         timeoutPromise,
       ])
+      
+      // Clear timeout if we got a result
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+      
       console.log(`[v0] streamText returned for ${model.id}`)
     } catch (streamError) {
+      // Clear timeout on error
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+      
+      // If timeout occurred, suppress the original promise rejection
+      if (streamError instanceof Error && streamError.message === "Timeout") {
+        // Cancel the original promise to prevent unhandled rejection
+        if (streamPromise) {
+          streamPromise.catch(() => {
+            // Silently catch the rejection from the cancelled promise
+          })
+        }
+      }
+      
       console.error(`[v0] streamText FAILED for ${model.id}:`, streamError)
       if (streamError instanceof Error) {
         console.error(`[v0] Error name: ${streamError.name}`)
@@ -116,9 +224,9 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
       clueScore: 0, // Will be calculated after all models run
       tokenUsage: usage
         ? {
-            prompt: usage.promptTokens,
-            completion: usage.completionTokens,
-            total: usage.totalTokens,
+            prompt: ("promptTokens" in usage ? (usage.promptTokens as number) : 0) || 0,
+            completion: ("completionTokens" in usage ? (usage.completionTokens as number) : 0) || 0,
+            total: ("totalTokens" in usage ? (usage.totalTokens as number) : 0) || 0,
           }
         : undefined,
     }
