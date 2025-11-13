@@ -14,9 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { RotateCcw, Zap, Download, ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock } from "lucide-react"
+import { RotateCcw, Zap, Download, ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { MODEL_COLORS } from "@/lib/constants"
+import Link from "next/link"
 
 export default function HomePage() {
   const { config, state, result, clueAttempts, isRunning, error, startRace, reset, workingModels } = useRaceStream()
@@ -95,6 +96,13 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-4">
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/about" className="flex items-center gap-2">
+                  <Info className="w-4 h-4" />
+                  About
+                </Link>
+              </Button>
+
               {state && <RaceTimer startedAt={state.startedAt} completedAt={state.completedAt} isRunning={isRunning} />}
 
               {result && (
