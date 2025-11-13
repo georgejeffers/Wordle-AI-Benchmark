@@ -159,9 +159,9 @@ export default function AboutPage() {
               interactive way to compare multiple language models racing against each other in real-time.
             </p>
             <p>
-              Special thanks to <strong className="text-foreground">Vercel</strong> for providing the infrastructure and
-              AI SDK that powers this application, making it possible to stream model responses with minimal latency and
-              deploy with zero configuration.
+              Special thanks to <strong className="text-foreground">Vercel</strong> and{" "}
+              <strong className="text-foreground">v0</strong> for making this possible. Built entirely with v0's AI code
+              generation and deployed on Vercel's infrastructure with the AI SDK powering real-time model streaming.
             </p>
           </CardContent>
         </Card>
