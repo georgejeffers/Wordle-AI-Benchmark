@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import type { RaceConfig, ModelConfig, Round, RaceState, ClueAttempt, RoundResult, RaceResult } from "@lib/types"
+import type { RaceConfig, ModelConfig, Round, RaceState, ClueAttempt, RoundResult, RaceResult } from "@/lib/types"
 import { DEFAULT_MODELS } from "@/lib/constants"
 import { RaceEngine } from "@/lib/race-engine"
 
