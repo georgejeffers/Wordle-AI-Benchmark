@@ -77,7 +77,9 @@ export function RaceSetupForm({ onStart, isRunning, examples }: RaceSetupFormPro
 
         {/* Model selection */}
         <div className="space-y-2">
-          <Label className="text-foreground">Select Models ({selectedModels.length}/6)</Label>
+          <Label className="text-foreground">
+            Select Models ({selectedModels.length}/{DEFAULT_MODELS.length})
+          </Label>
           <div className="grid grid-cols-2 gap-2">
             {DEFAULT_MODELS.map((model) => (
               <button
