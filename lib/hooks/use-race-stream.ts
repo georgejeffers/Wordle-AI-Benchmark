@@ -24,6 +24,7 @@ interface UseRaceStreamResult {
   clueAttempts: Map<string, ClueAttempt[]>
   isRunning: boolean
   error: string | null
+  workingModels: Set<string>
   startRace: (name: string, rounds: any[], models?: string[]) => Promise<void>
   reset: () => void
 }
@@ -38,6 +39,7 @@ export function useRaceStream(): UseRaceStreamResult {
   const [clueAttempts, setClueAttempts] = useState<Map<string, ClueAttempt[]>>(new Map())
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [workingModels, setWorkingModels] = useState<Set<string>>(new Set())
   const abortControllerRef = useRef<AbortController | null>(null)
 
   const reset = useCallback(() => {
@@ -47,6 +49,7 @@ export function useRaceStream(): UseRaceStreamResult {
     setClueAttempts(new Map())
     setIsRunning(false)
     setError(null)
+    setWorkingModels(new Set())
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
       abortControllerRef.current = null
@@ -102,23 +105,30 @@ export function useRaceStream(): UseRaceStreamResult {
                     if (event.state) setState(event.state)
                     break
                   case "modelStart":
-                    // Track which models are currently working (handled in parent component)
+                    if (event.modelId) {
+                      setWorkingModels((prev) => new Set(prev).add(event.modelId!))
+                    }
                     break
                   case "modelProgress":
-                    // Could show partial text as models generate responses
                     break
                   case "attempt":
                     if (event.attempt) {
+                      if (event.attempt.modelId) {
+                        setWorkingModels((prev) => {
+                          const next = new Set(prev)
+                          next.delete(event.attempt!.modelId)
+                          return next
+                        })
+                      }
+
                       setClueAttempts((prev) => {
                         const next = new Map(prev)
                         const clueId = event.attempt!.clueId
                         const existing = next.get(clueId) || []
-                        // Check if this attempt already exists (avoid duplicates)
                         const exists = existing.some((a) => a.modelId === event.attempt!.modelId && a.clueId === clueId)
                         if (!exists) {
                           next.set(clueId, [...existing, event.attempt!])
                         } else {
-                          // Update existing attempt
                           const updated = existing.map((a) =>
                             a.modelId === event.attempt!.modelId && a.clueId === clueId ? event.attempt! : a,
                           )
@@ -129,7 +139,6 @@ export function useRaceStream(): UseRaceStreamResult {
                     }
                     break
                   case "clue":
-                    // Keep this for backward compatibility
                     if (event.clueId && event.attempts) {
                       setClueAttempts((prev) => {
                         const next = new Map(prev)
@@ -139,17 +148,18 @@ export function useRaceStream(): UseRaceStreamResult {
                     }
                     break
                   case "round":
-                    // Could track round results if needed
                     break
                   case "complete":
                     if (event.result) {
                       setResult(event.result)
                       setIsRunning(false)
+                      setWorkingModels(new Set())
                     }
                     break
                   case "error":
                     setError(event.error || "Unknown error")
                     setIsRunning(false)
+                    setWorkingModels(new Set())
                     break
                 }
               } catch (err) {
@@ -166,12 +176,12 @@ export function useRaceStream(): UseRaceStreamResult {
           setError(err instanceof Error ? err.message : "Unknown error")
         }
         setIsRunning(false)
+        setWorkingModels(new Set())
       }
     },
     [reset],
   )
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -187,6 +197,7 @@ export function useRaceStream(): UseRaceStreamResult {
     clueAttempts,
     isRunning,
     error,
+    workingModels,
     startRace,
     reset,
   }
