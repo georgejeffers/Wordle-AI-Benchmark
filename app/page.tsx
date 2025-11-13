@@ -22,6 +22,7 @@ export default function HomePage() {
   const { config, state, result, clueAttempts, isRunning, error, startRace, reset } = useRaceStream()
   const [examples, setExamples] = useState<any[]>([])
   const [isRaceDetailsExpanded, setIsRaceDetailsExpanded] = useState(false)
+  const [workingModels, setWorkingModels] = useState<Set<string>>(new Set())
 
   // Load examples
   useEffect(() => {
@@ -30,6 +31,18 @@ export default function HomePage() {
       .then((data) => setExamples(data.examples))
       .catch((err) => console.error("[v0] Failed to load examples:", err))
   }, [])
+
+  useEffect(() => {
+    if (config && state?.currentClueId && isRunning) {
+      const currentClueAttempts = clueAttempts.get(state.currentClueId) || []
+      const completedModelIds = new Set(currentClueAttempts.map((a) => a.modelId))
+      const allModelIds = config.models.map((m) => m.id)
+      const workingModelIds = allModelIds.filter((id) => !completedModelIds.has(id))
+      setWorkingModels(new Set(workingModelIds))
+    } else {
+      setWorkingModels(new Set())
+    }
+  }, [config, state?.currentClueId, clueAttempts, isRunning])
 
   const getModelAttempts = (modelId: string) => {
     const attempts = Array.from(clueAttempts.values()).flat()
@@ -261,6 +274,8 @@ export default function HomePage() {
                 totalClues={state.totalClues}
                 color={getModelColor(model.id)}
                 isRunning={isRunning}
+                currentClueId={state.currentClueId}
+                isModelWorking={workingModels.has(model.id)}
               />
             ))}
           </div>

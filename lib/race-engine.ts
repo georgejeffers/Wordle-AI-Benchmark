@@ -6,6 +6,9 @@ import { scoreClueAttempts, calculateModelScores, calculateClueStats } from "./s
 
 export interface RaceCallbacks {
   onStateChange?: (state: RaceState) => void
+  onModelStart?: (modelId: string, clueId: string) => void
+  onModelProgress?: (modelId: string, clueId: string, partialText: string) => void
+  onAttemptComplete?: (attempt: ClueAttempt) => void
   onClueComplete?: (clueId: string, attempts: ClueAttempt[]) => void
   onRoundComplete?: (roundResult: RoundResult) => void
   onRaceComplete?: (raceResult: RaceResult) => void
@@ -127,6 +130,19 @@ export class RaceEngine {
       (clueId, clueAttempts) => {
         this.handleClueComplete(clueId, clueAttempts, round)
       },
+      (attempt) => {
+        this.handleAttemptComplete(attempt)
+      },
+      (modelId, clueId) => {
+        if (this.callbacks.onModelStart) {
+          this.callbacks.onModelStart(modelId, clueId)
+        }
+      },
+      (modelId, clueId, partialText) => {
+        if (this.callbacks.onModelProgress) {
+          this.callbacks.onModelProgress(modelId, clueId, partialText)
+        }
+      },
     )
 
     // Group attempts by clue
@@ -179,15 +195,30 @@ export class RaceEngine {
   }
 
   /**
+   * Handle individual attempt completion
+   */
+  private handleAttemptComplete(attempt: ClueAttempt) {
+    this.allAttempts.push(attempt)
+
+    // Update state incrementally
+    const completedClues = new Set(this.allAttempts.map((a) => a.clueId)).size
+
+    this.updateState({
+      completedClues,
+      progress: Math.round((completedClues / this.state.totalClues) * 100),
+    })
+
+    if (this.callbacks.onAttemptComplete) {
+      this.callbacks.onAttemptComplete(attempt)
+    }
+  }
+
+  /**
    * Handle clue completion
    */
   private handleClueComplete(clueId: string, attempts: ClueAttempt[], round: Round) {
-    this.allAttempts.push(...attempts)
-
     this.updateState({
       currentClueId: clueId,
-      completedClues: this.state.completedClues + 1,
-      progress: Math.round(((this.state.completedClues + 1) / this.state.totalClues) * 100),
     })
 
     if (this.callbacks.onClueComplete) {

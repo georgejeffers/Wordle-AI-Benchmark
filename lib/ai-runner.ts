@@ -12,6 +12,8 @@ export interface RunClueParams {
   mode: "json" | "plain"
   maxTokens?: number
   timeoutMs?: number
+  onModelStart?: (modelId: string, clueId: string) => void
+  onModelProgress?: (modelId: string, clueId: string, partialText: string) => void
 }
 
 export interface RunClueResult {
@@ -69,17 +71,17 @@ async function getProviderAndModel(modelString: string) {
  */
 function extractTextFromValue(value: any): string | null {
   if (!value || typeof value !== "object") return null
-  
+
   // Check for text field directly (most common case)
   if (value.text && typeof value.text === "string" && value.text.length > 0) {
     return value.text
   }
-  
+
   // Check for part.text structure (OpenAI response format)
   if (value.part && value.part.text && typeof value.part.text === "string") {
     return value.part.text
   }
-  
+
   // Check for item.content structure (OpenAI response format)
   if (value.item && value.item.content) {
     if (Array.isArray(value.item.content)) {
@@ -92,7 +94,7 @@ function extractTextFromValue(value: any): string | null {
       return value.item.content.text
     }
   }
-  
+
   // Check for response.output structure (OpenAI format)
   if (value.response && value.response.output) {
     for (const output of value.response.output) {
@@ -109,7 +111,7 @@ function extractTextFromValue(value: any): string | null {
       }
     }
   }
-  
+
   // Check for candidates structure (Gemini format)
   if (value.candidates && Array.isArray(value.candidates)) {
     for (const candidate of value.candidates) {
@@ -122,15 +124,15 @@ function extractTextFromValue(value: any): string | null {
       }
     }
   }
-  
+
   // Recursively search nested objects (but limit depth to avoid infinite loops)
-  const searchDepth = (obj: any, depth: number = 0): string | null => {
+  const searchDepth = (obj: any, depth = 0): string | null => {
     if (depth > 5 || !obj || typeof obj !== "object") return null
-    
+
     if (obj.text && typeof obj.text === "string" && obj.text.length > 0) {
       return obj.text
     }
-    
+
     for (const key in obj) {
       if (key === "text" && typeof obj[key] === "string" && obj[key].length > 0) {
         return obj[key]
@@ -138,10 +140,10 @@ function extractTextFromValue(value: any): string | null {
       const found = searchDepth(obj[key], depth + 1)
       if (found) return found
     }
-    
+
     return null
   }
-  
+
   return searchDepth(value)
 }
 
@@ -157,7 +159,7 @@ function extractTextFromError(error: any): string | null {
     if (error.value && error.value.text && typeof error.value.text === "string" && error.value.text.length > 0) {
       return error.value.text
     }
-    
+
     if (error.cause) {
       const causeText = extractTextFromValue(error.cause)
       if (causeText) return causeText
@@ -166,7 +168,7 @@ function extractTextFromError(error: any): string | null {
       const valueText = extractTextFromValue(error.value)
       if (valueText) return valueText
     }
-    
+
     // Also check error.message for embedded JSON
     if (error.message && typeof error.message === "string") {
       // Look for "text":"..." pattern directly in error message (more reliable than parsing nested JSON)
@@ -177,7 +179,7 @@ function extractTextFromError(error: any): string | null {
           return extracted
         }
       }
-      
+
       // Also try to parse Value: {...} pattern if above didn't work
       const valueMatch = error.message.match(/Value:\s*(\{[\s\S]{0,5000}\})/)
       if (valueMatch && valueMatch[1]) {
@@ -194,11 +196,11 @@ function extractTextFromError(error: any): string | null {
 
   // Combine all error string sources for regex matching
   const errorSources: string[] = []
-  
+
   if (error instanceof Error) {
     errorSources.push(error.stack || "", error.message || "", String(error))
   }
-  
+
   // Try to stringify the error object itself
   try {
     errorSources.push(JSON.stringify(error))
@@ -318,11 +320,7 @@ function extractTextFromError(error: any): string | null {
   // Find the longest candidate that looks like valid JSON or contains "answer"
   const validCandidates = allCandidates.filter((c) => {
     const trimmed = c.trim()
-    return (
-      trimmed.startsWith("{") ||
-      trimmed.includes("answer") ||
-      (trimmed.length > 3 && /^[a-z]+$/i.test(trimmed))
-    )
+    return trimmed.startsWith("{") || trimmed.includes("answer") || (trimmed.length > 3 && /^[a-z]+$/i.test(trimmed))
   })
 
   if (validCandidates.length === 0) return null
@@ -331,7 +329,7 @@ function extractTextFromError(error: any): string | null {
   const best = validCandidates.reduce((longest, current) => {
     const currentClean = current.trim()
     const longestClean = longest.trim()
-    
+
     // Prefer JSON objects
     if (currentClean.startsWith("{") && !longestClean.startsWith("{")) {
       return current
@@ -339,7 +337,7 @@ function extractTextFromError(error: any): string | null {
     if (longestClean.startsWith("{") && !currentClean.startsWith("{")) {
       return longest
     }
-    
+
     // Otherwise prefer longer
     return currentClean.length > longestClean.length ? current : longest
   }, validCandidates[0])
@@ -351,7 +349,11 @@ function extractTextFromError(error: any): string | null {
  * Run a single model on a single clue with timing and validation
  */
 export async function runModelOnClue(params: RunClueParams): Promise<RunClueResult> {
-  const { raceId, roundId, clue, model, mode, maxTokens = 16, timeoutMs = 4000 } = params
+  const { raceId, roundId, clue, model, mode, maxTokens = 16, timeoutMs = 4000, onModelStart, onModelProgress } = params
+
+  if (onModelStart) {
+    onModelStart(model.id, clue.id)
+  }
 
   const tRequest = performance.now()
   let tFirst: number | undefined
@@ -406,7 +408,7 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
       // streamText returns synchronously, but streaming happens async
       // Wrap in a promise to handle timeout and errors
       const streamPromise = Promise.resolve(streamTextFn(streamTextOptions))
-      
+
       result = await Promise.race([streamPromise, timeoutPromise])
 
       if (timeoutId) {
@@ -473,18 +475,26 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
               if (typeof delta === "string") {
                 accumulatedDeltas.push(delta)
                 text += delta
+
+                if (onModelProgress) {
+                  onModelProgress(model.id, clue.id, text)
+                }
               }
             }
           } catch (streamIterError) {
             // Even if iteration fails, we might have accumulated some text
             console.warn(`[v0] Stream iteration error for ${model.id}, attempting recovery...`)
-            
+
             // Extract text from stream iteration error - this often contains the complete response
             const extractedText = extractTextFromError(streamIterError)
             if (extractedText) {
               // Use extracted text if it's more complete than what we accumulated
               const accumulatedText = accumulatedDeltas.join("")
-              if (!accumulatedText || extractedText.length > accumulatedText.length || extractedText.includes("answer")) {
+              if (
+                !accumulatedText ||
+                extractedText.length > accumulatedText.length ||
+                extractedText.includes("answer")
+              ) {
                 text = extractedText
                 console.log(`[v0] ✅ Extracted text from stream iteration error: "${text}"`)
               } else if (accumulatedText) {
@@ -629,6 +639,9 @@ export async function runClueAcrossModels(
   mode: "json" | "plain" = "json",
   maxTokens?: number,
   timeoutMs?: number,
+  onAttemptComplete?: (attempt: ClueAttempt) => void,
+  onModelStart?: (modelId: string, clueId: string) => void,
+  onModelProgress?: (modelId: string, clueId: string, partialText: string) => void,
 ): Promise<ClueAttempt[]> {
   console.log(`[v0] Running clue ${clue.id} across ${models.length} models`)
 
@@ -641,6 +654,13 @@ export async function runClueAcrossModels(
       mode,
       maxTokens,
       timeoutMs,
+      onModelStart,
+      onModelProgress,
+    }).then((result) => {
+      if (onAttemptComplete) {
+        onAttemptComplete(result.attempt)
+      }
+      return result
     }),
   )
 
@@ -668,13 +688,27 @@ export async function runRound(
   maxTokens?: number,
   timeoutMs?: number,
   onClueComplete?: (clueId: string, attempts: ClueAttempt[]) => void,
+  onAttemptComplete?: (attempt: ClueAttempt) => void,
+  onModelStart?: (modelId: string, clueId: string) => void,
+  onModelProgress?: (modelId: string, clueId: string, partialText: string) => void,
 ): Promise<ClueAttempt[]> {
   const allAttempts: ClueAttempt[] = []
 
   for (const clue of clues) {
     console.log(`[v0] Starting clue: ${clue.clue}`)
 
-    const attempts = await runClueAcrossModels(raceId, roundId, clue, models, mode, maxTokens, timeoutMs)
+    const attempts = await runClueAcrossModels(
+      raceId,
+      roundId,
+      clue,
+      models,
+      mode,
+      maxTokens,
+      timeoutMs,
+      onAttemptComplete,
+      onModelStart,
+      onModelProgress,
+    )
 
     allAttempts.push(...attempts)
 

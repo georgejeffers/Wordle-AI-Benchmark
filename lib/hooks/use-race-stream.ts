@@ -4,10 +4,13 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import type { RaceConfig, RaceState, ClueAttempt, RoundResult, RaceResult } from "@/lib/types"
 
 interface StreamEvent {
-  type: "config" | "state" | "clue" | "round" | "complete" | "error"
+  type: "config" | "state" | "modelStart" | "modelProgress" | "attempt" | "clue" | "round" | "complete" | "error"
   config?: RaceConfig
   state?: RaceState
+  modelId?: string
   clueId?: string
+  partialText?: string
+  attempt?: ClueAttempt
   attempts?: ClueAttempt[]
   roundResult?: RoundResult
   result?: RaceResult
@@ -98,7 +101,35 @@ export function useRaceStream(): UseRaceStreamResult {
                   case "state":
                     if (event.state) setState(event.state)
                     break
+                  case "modelStart":
+                    // Track which models are currently working (handled in parent component)
+                    break
+                  case "modelProgress":
+                    // Could show partial text as models generate responses
+                    break
+                  case "attempt":
+                    if (event.attempt) {
+                      setClueAttempts((prev) => {
+                        const next = new Map(prev)
+                        const clueId = event.attempt!.clueId
+                        const existing = next.get(clueId) || []
+                        // Check if this attempt already exists (avoid duplicates)
+                        const exists = existing.some((a) => a.modelId === event.attempt!.modelId && a.clueId === clueId)
+                        if (!exists) {
+                          next.set(clueId, [...existing, event.attempt!])
+                        } else {
+                          // Update existing attempt
+                          const updated = existing.map((a) =>
+                            a.modelId === event.attempt!.modelId && a.clueId === clueId ? event.attempt! : a,
+                          )
+                          next.set(clueId, updated)
+                        }
+                        return next
+                      })
+                    }
+                    break
                   case "clue":
+                    // Keep this for backward compatibility
                     if (event.clueId && event.attempts) {
                       setClueAttempts((prev) => {
                         const next = new Map(prev)

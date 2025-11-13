@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import type { RaceConfig, ModelConfig, Round, RaceState, ClueAttempt, RoundResult, RaceResult } from "@/lib/types"
+import type { RaceConfig, ModelConfig, Round, RaceState, ClueAttempt, RoundResult, RaceResult } from "@lib/types"
 import { DEFAULT_MODELS } from "@/lib/constants"
 import { RaceEngine } from "@/lib/race-engine"
 
@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "config", config: raceConfig })}\n\n`))
 
         console.log("[v0] Creating RaceEngine...")
-        // Create engine with callbacks
         const engine = new RaceEngine(raceConfig, {
           onStateChange: (state: RaceState) => {
             try {
@@ -91,6 +90,38 @@ export async function POST(request: NextRequest) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "state", state })}\n\n`))
             } catch (error) {
               console.error("[v0] Failed to send state update:", error)
+            }
+          },
+          onModelStart: (modelId: string, clueId: string) => {
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "modelStart", modelId, clueId })}\n\n`))
+            } catch (error) {
+              console.error("[v0] Failed to send model start:", error)
+            }
+          },
+          onModelProgress: (modelId: string, clueId: string, partialText: string) => {
+            try {
+              // Limit partial text length to avoid overwhelming the client
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "modelProgress",
+                    modelId,
+                    clueId,
+                    partialText: partialText.substring(0, 50),
+                  })}\n\n`,
+                ),
+              )
+            } catch (error) {
+              console.error("[v0] Failed to send model progress:", error)
+            }
+          },
+          onAttemptComplete: (attempt: ClueAttempt) => {
+            try {
+              console.log(`[v0] Attempt complete: ${attempt.modelId} on ${attempt.clueId}`)
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "attempt", attempt })}\n\n`))
+            } catch (error) {
+              console.error("[v0] Failed to send attempt:", error)
             }
           },
           onClueComplete: (clueId: string, attempts: ClueAttempt[]) => {
