@@ -15,8 +15,8 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { RotateCcw, Zap, Download, ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock } from "lucide-react"
-import { MODEL_COLORS } from "@/lib/constants"
 import { cn } from "@/lib/utils"
+import { MODEL_COLORS } from "@/lib/constants"
 
 export default function HomePage() {
   const { config, state, result, clueAttempts, isRunning, error, startRace, reset } = useRaceStream()
@@ -61,9 +61,6 @@ export default function HomePage() {
     URL.revokeObjectURL(url)
   }
 
-  const allAttempts = Array.from(clueAttempts.values()).flat()
-
-  // Get all clues in order from config
   const getAllClues = () => {
     if (!config) return []
     const clues: Array<{ clue: any; index: number }> = []
@@ -76,11 +73,11 @@ export default function HomePage() {
     return clues
   }
 
-  // Group attempts by clueId
   const getAttemptsByClueId = (clueId: string) => {
     return allAttempts.filter((a) => a.clueId === clueId)
   }
 
+  const allAttempts = Array.from(clueAttempts.values()).flat()
   const allClues = getAllClues()
 
   return (
@@ -189,18 +186,7 @@ export default function HomePage() {
                 )}
               </Button>
             </div>
-            {config.models.map((model) => (
-              <RaceLane
-                key={model.id}
-                model={model}
-                attempts={getModelAttempts(model.id)}
-                totalClues={state.totalClues}
-                color={getModelColor(model.id)}
-                isRunning={isRunning}
-              />
-            ))}
 
-            {/* Expandable details section */}
             {isRaceDetailsExpanded && (
               <Card className="bg-card/50 backdrop-blur border-border mt-4">
                 <CardHeader>
@@ -213,74 +199,50 @@ export default function HomePage() {
                       const hasAttempts = clueAttempts.length > 0
 
                       return (
-                        <div
-                          key={clue.id}
-                          className="p-4 bg-muted/50 rounded-lg border border-border space-y-3"
-                        >
-                          <div className="flex items-start justify-between">
+                        <div key={clue.id} className="space-y-2">
+                          <div className="flex items-start gap-2">
+                            <Badge variant="outline" className="mt-0.5">
+                              {index}
+                            </Badge>
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-sm font-semibold text-muted-foreground">Question {index}</span>
-                                {hasAttempts && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {clueAttempts.filter((a) => a.correct).length}/{clueAttempts.length} correct
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-base font-medium text-foreground mb-1">{clue.clue}</p>
+                              <p className="text-sm font-medium text-foreground">{clue.clue}</p>
                               <p className="text-xs text-muted-foreground">
-                                Answer: <span className="font-mono">{clue.answer}</span> ({clue.length} letters)
+                                Expected answer: <span className="font-mono">{clue.answer}</span> ({clue.length}{" "}
+                                letters)
                               </p>
                             </div>
                           </div>
 
-                          {hasAttempts ? (
-                            <div className="space-y-2 pt-2 border-t border-border">
-                              <p className="text-sm font-medium text-muted-foreground">Model Answers:</p>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                {config.models.map((model) => {
-                                  const attempt = clueAttempts.find((a) => a.modelId === model.id)
-                                  if (!attempt) return null
-
-                                  return (
-                                    <div
-                                      key={model.id}
-                                      className={cn(
-                                        "p-3 rounded-lg border text-sm",
-                                        attempt.correct
-                                          ? "bg-green-500/10 border-green-500/30"
-                                          : "bg-red-500/10 border-red-500/30",
-                                      )}
-                                    >
-                                      <div className="flex items-center justify-between mb-1">
-                                        <span className="font-medium text-foreground">{model.name}</span>
-                                        {attempt.correct ? (
-                                          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                        ) : (
-                                          <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                                        )}
-                                      </div>
-                                      <div className="space-y-1">
-                                        <div className="text-xs">
-                                          <span className="text-muted-foreground">Answer: </span>
-                                          <span className="font-mono text-foreground">
-                                            {attempt.normalized || attempt.output}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                          <Clock className="w-3 h-3" />
-                                          <span>{attempt.e2eMs.toFixed(0)}ms</span>
-                                          <span className="ml-auto">Score: {attempt.clueScore.toFixed(1)}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="pt-2 border-t border-border">
-                              <p className="text-sm text-muted-foreground italic">No attempts yet...</p>
+                          {hasAttempts && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 ml-8">
+                              {clueAttempts.map((attempt) => (
+                                <div
+                                  key={`${attempt.modelId}-${attempt.clueId}`}
+                                  className={cn(
+                                    "p-2 rounded border text-xs",
+                                    attempt.correct
+                                      ? "bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400"
+                                      : "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400",
+                                  )}
+                                >
+                                  <div className="flex items-center gap-1 mb-1">
+                                    {attempt.correct ? (
+                                      <CheckCircle2 className="w-3 h-3" />
+                                    ) : (
+                                      <XCircle className="w-3 h-3" />
+                                    )}
+                                    <span className="font-medium">{attempt.modelId}</span>
+                                  </div>
+                                  <div className="font-mono text-xs mb-1">"{attempt.normalized}"</div>
+                                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                    <span className="flex items-center gap-0.5">
+                                      <Clock className="w-2.5 h-2.5" />
+                                      {attempt.e2eMs.toFixed(0)}ms
+                                    </span>
+                                    <span>Score: {attempt.clueScore.toFixed(1)}</span>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -290,6 +252,17 @@ export default function HomePage() {
                 </CardContent>
               </Card>
             )}
+
+            {config.models.map((model) => (
+              <RaceLane
+                key={model.id}
+                model={model}
+                attempts={getModelAttempts(model.id)}
+                totalClues={state.totalClues}
+                color={getModelColor(model.id)}
+                isRunning={isRunning}
+              />
+            ))}
           </div>
         )}
 

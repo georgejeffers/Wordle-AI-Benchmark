@@ -28,8 +28,7 @@ export function normalizeAnswer(
     word = word.replace(/[-\s\p{P}]/gu, "")
   } else {
     // Bun doesn't support character class intersection (&&), so we use a workaround:
-    // Match whitespace and punctuation, but exclude hyphens by using a negative character class
-    // This matches anything that's not a word character and not a hyphen
+    // Match anything that's not a word character and not a hyphen
     word = word.replace(/[^\w-]/gu, "")
   }
 
