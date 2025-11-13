@@ -1,6 +1,5 @@
 import { Zap, Server, Gauge, Brain, Code2, Activity, Trophy } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
@@ -148,77 +147,22 @@ export default function AboutPage() {
           </CardContent>
         </Card>
 
-        {/* Tech Stack */}
+        {/* Hackathon Context */}
         <Card className="mb-8 bg-card/50 backdrop-blur border-border">
           <CardHeader>
-            <CardTitle className="text-foreground">Tech Stack</CardTitle>
+            <CardTitle className="text-foreground">Built for Web Summit Hackathon</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <Badge variant="secondary" className="justify-center py-2">
-                Next.js 16
-              </Badge>
-              <Badge variant="secondary" className="justify-center py-2">
-                React 19
-              </Badge>
-              <Badge variant="secondary" className="justify-center py-2">
-                TypeScript
-              </Badge>
-              <Badge variant="secondary" className="justify-center py-2">
-                Vercel AI SDK v5
-              </Badge>
-              <Badge variant="secondary" className="justify-center py-2">
-                Server-Sent Events
-              </Badge>
-              <Badge variant="secondary" className="justify-center py-2">
-                Tailwind CSS v4
-              </Badge>
-              <Badge variant="secondary" className="justify-center py-2">
-                Recharts
-              </Badge>
-              <Badge variant="secondary" className="justify-center py-2">
-                shadcn/ui
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Use Cases */}
-        <Card className="mb-8 bg-card/50 backdrop-blur border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground">Use Cases</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-1">•</span>
-                <span>
-                  <strong className="text-foreground">Model Selection</strong>: Compare models for constrained
-                  generation tasks
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-1">•</span>
-                <span>
-                  <strong className="text-foreground">Performance Testing</strong>: Benchmark inference speed and
-                  accuracy under time limits
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-1">•</span>
-                <span>
-                  <strong className="text-foreground">API Comparison</strong>: Test different providers with identical
-                  prompts
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-1">•</span>
-                <span>
-                  <strong className="text-foreground">Educational Demo</strong>: Learn SSE streaming and parallel AI
-                  execution patterns
-                </span>
-              </li>
-            </ul>
+          <CardContent className="space-y-4 text-muted-foreground">
+            <p>
+              This project was created for the <strong className="text-foreground">Web Summit Hackathon</strong>,
+              inspired by Groq's impressive AI inference speed demonstrations. The goal was to build a visual,
+              interactive way to compare multiple language models racing against each other in real-time.
+            </p>
+            <p>
+              Special thanks to <strong className="text-foreground">Vercel</strong> for providing the infrastructure and
+              AI SDK that powers this application, making it possible to stream model responses with minimal latency and
+              deploy with zero configuration.
+            </p>
           </CardContent>
         </Card>
 
