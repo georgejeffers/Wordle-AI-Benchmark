@@ -2,7 +2,7 @@
 
 export type CaseRule = "lower" | "upper" | "title" | "as-is"
 export type OutputRule = "plain" | "json"
-export type RoundType = "crossword"
+export type RoundType = "crossword" | "wordle"
 
 export interface Clue {
   id: string
@@ -112,4 +112,64 @@ export interface RaceState {
   startedAt?: number
   completedAt?: number
   progress: number // 0-100
+}
+
+// Wordle-specific types
+
+export type WordleFeedback = "correct" | "present" | "absent"
+
+export interface WordleGuess {
+  modelId: string
+  guessIndex: number // 0-5
+  word: string // the guessed word
+  feedback: WordleFeedback[] // feedback for each letter position
+  tRequest: number
+  tFirst?: number
+  tLast: number
+  e2eMs: number
+  ttftMs?: number
+  correct: boolean // true if this guess was correct
+}
+
+export interface WordleGameState {
+  modelId: string
+  guesses: WordleGuess[]
+  solved: boolean
+  solvedAtGuess?: number // which guess number solved it (1-6)
+  timeToSolveMs?: number // total time from start to solve
+  failed: boolean // true if didn't solve in 6 guesses
+}
+
+export interface WordleConfig {
+  id: string
+  name: string
+  models: ModelConfig[]
+  targetWord: string // the word to solve (not revealed to frontend initially)
+  wordLength: number // always 5
+  maxGuesses: number // always 6
+  createdAt: number
+}
+
+export interface WordleState {
+  gameId: string
+  status: RaceStatus
+  startedAt?: number
+  completedAt?: number
+  modelStates: Map<string, WordleGameState>
+}
+
+export interface WordleModelResult {
+  modelId: string
+  modelName: string
+  solved: boolean
+  guessCount: number // 1-6, or 6 if failed
+  timeToSolveMs?: number // undefined if failed
+  rank: number
+}
+
+export interface WordleRaceResult {
+  gameId: string
+  targetWord: string
+  modelResults: WordleModelResult[]
+  winner?: string // modelId
 }

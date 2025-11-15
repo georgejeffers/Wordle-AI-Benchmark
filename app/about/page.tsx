@@ -1,4 +1,4 @@
-import { Zap, Server, Gauge, Brain, Code2, Activity, Trophy } from "lucide-react"
+import { Zap, Server, Gauge, Brain, Code2, Activity, Trophy, Lightbulb, Target, Grid3x3 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -147,6 +147,150 @@ export default function AboutPage() {
           </CardContent>
         </Card>
 
+        {/* Wordle Mode */}
+        <Card className="mb-8 bg-card/50 backdrop-blur border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Grid3x3 className="w-5 h-5" />
+              How Wordle Mode Works
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Overview */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">Overview</h3>
+                  <p className="text-sm text-muted-foreground">
+                    In Wordle Mode, multiple AI models race to solve the same 5-letter word puzzle. Each model gets up to 6
+                    guesses, and after each guess, they receive Wordle-style feedback:
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
+                    <li>
+                      <span className="inline-block w-4 h-4 bg-green-500 rounded mr-2 align-middle"></span>
+                      <strong className="text-foreground">Green</strong>: Letter is correct and in the right position
+                    </li>
+                    <li>
+                      <span className="inline-block w-4 h-4 bg-yellow-500 rounded mr-2 align-middle"></span>
+                      <strong className="text-foreground">Yellow</strong>: Letter is in the word but in the wrong position
+                    </li>
+                    <li>
+                      <span className="inline-block w-4 h-4 bg-gray-500 rounded mr-2 align-middle"></span>
+                      <strong className="text-foreground">Gray</strong>: Letter is not in the word
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* How AI Models Receive Prompts */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <Lightbulb className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">AI Prompt System</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Each AI model receives a carefully crafted prompt that includes:
+                  </p>
+                  <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-2">
+                    <li>
+                      <strong className="text-foreground">Wordle rules</strong> explaining the game mechanics and feedback system
+                    </li>
+                    <li>
+                      <strong className="text-foreground">Previous guesses and feedback</strong> - All their prior attempts with color-coded feedback
+                      (🟩 for green, 🟨 for yellow, ⬜ for gray)
+                    </li>
+                    <li>
+                      <strong className="text-foreground">Instructions</strong> to output only a single 5-letter lowercase word with no additional text
+                    </li>
+                  </ol>
+                  <div className="mt-4 p-3 bg-muted rounded-lg border border-border">
+                    <p className="text-xs font-mono text-foreground whitespace-pre-wrap">
+                      {`Example prompt structure:
+
+You are playing Wordle. Guess a 5-letter English word.
+
+Rules:
+- You have up to 6 guesses total
+- After each guess, you'll get feedback:
+  * Green (correct): letter is in the word and in the correct position
+  * Yellow (present): letter is in the word but in a different position
+  * Gray (absent): letter is not in the word at all
+- Output ONLY a single 5-letter lowercase word, nothing else
+
+Previous guesses and feedback:
+Guess 1: CRANE 🟨⬜⬜⬜🟨
+Guess 2: STORM ⬜⬜⬜⬜⬜
+
+Your next guess (output only the 5-letter word):`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Real-time Streaming */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">Live Updates</h3>
+                  <p className="text-sm text-muted-foreground">
+                    All models play simultaneously, and you see their guesses appear in real-time via Server-Sent Events
+                    (SSE). Each model's board updates as they make guesses, showing their progress as they work toward
+                    solving the puzzle.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Scoring */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <Trophy className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">Scoring & Ranking</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Models are ranked based on:
+                  </p>
+                  <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-2">
+                    <li>
+                      <strong className="text-foreground">Solved vs Failed</strong> - Models that solve the puzzle rank higher than those that don't
+                    </li>
+                    <li>
+                      <strong className="text-foreground">Speed</strong> - Among models that solve it, faster completion time wins
+                    </li>
+                    <li>
+                      <strong className="text-foreground">Efficiency</strong> - When times are close, fewer guesses wins
+                    </li>
+                  </ol>
+                  <p className="text-sm text-muted-foreground mt-3">
+                    Models that fail to solve the puzzle within 6 guesses are ranked below all successful solvers.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Technical Details */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <Target className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">Technical Details</h3>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                    <li>Each model runs independently and in parallel</li>
+                    <li>Guesses are validated to ensure they're 5-letter words</li>
+                    <li>Feedback is computed using standard Wordle rules</li>
+                    <li>All models solve the same randomly selected target word</li>
+                    <li>The target word is chosen from a curated list of common 5-letter words</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Hackathon Context */}
         <Card className="mb-8 bg-card/50 backdrop-blur border-border">
           <CardHeader>
@@ -174,19 +318,14 @@ export default function AboutPage() {
                 <p className="text-foreground font-medium mb-1">Built by George Jefferson</p>
                 <p className="text-sm text-muted-foreground">Open source project exploring real-time AI benchmarking</p>
               </div>
-              <div className="flex gap-3">
-                <Button asChild variant="outline" size="sm">
-                  <a href="https://x.com/GeorgeJeffersn" target="_blank" rel="noopener noreferrer">
-                    <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
-                    Follow on X
-                  </a>
-                </Button>
-                <Button asChild variant="default" size="sm">
-                  <Link href="/">Try It Now</Link>
-                </Button>
-              </div>
+              <Button asChild variant="outline" size="sm">
+                <a href="https://x.com/GeorgeJeffersn" target="_blank" rel="noopener noreferrer">
+                  <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  Follow on X
+                </a>
+              </Button>
             </div>
           </CardContent>
         </Card>

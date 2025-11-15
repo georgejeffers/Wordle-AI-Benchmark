@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { useRaceStream } from "@/lib/hooks/use-race-stream"
+import { useWordleStream } from "@/lib/hooks/use-wordle-stream"
 import { RaceSetupForm } from "@/components/race-setup-form"
+import { WordleSetupForm } from "@/components/wordle-setup-form"
 import { RaceLane } from "@/components/race-lane"
+import { WordleRaceLane } from "@/components/wordle-race-lane"
 import { RacePodium } from "@/components/race-podium"
 import { RaceStatsPanel } from "@/components/race-stats-panel"
+import { WordleResultsPanel } from "@/components/wordle-results-panel"
 import { RaceSpeedChart } from "@/components/race-speed-chart"
 import { RaceAccuracyChart } from "@/components/race-accuracy-chart"
 import { LiveClueDisplay } from "@/components/live-clue-display"
@@ -14,15 +18,45 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { RotateCcw, Zap, Download, ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock, Info } from "lucide-react"
+import { RotateCcw, Zap, Download, ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock, Info, Grid3x3, Puzzle } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { MODEL_COLORS } from "@/lib/constants"
+import { MODEL_COLORS, DEFAULT_MODELS } from "@/lib/constants"
 import Link from "next/link"
 
+type GameMode = "race" | "wordle"
+
 export default function HomePage() {
-  const { config, state, result, clueAttempts, isRunning, error, startRace, reset, workingModels } = useRaceStream()
+  const [gameMode, setGameMode] = useState<GameMode>("wordle")
+  
+  // Race mode hooks
+  const raceStream = useRaceStream()
+  const { config, state, result, clueAttempts, isRunning, error, startRace, reset, workingModels } = raceStream
+  
+  // Wordle mode hooks
+  const wordleStream = useWordleStream()
+  const {
+    config: wordleConfig,
+    state: wordleState,
+    result: wordleResult,
+    modelStates: wordleModelStates,
+    isRunning: isWordleRunning,
+    error: wordleError,
+    startWordleRace,
+    reset: resetWordle,
+    workingModels: wordleWorkingModels,
+  } = wordleStream
+  
   const [examples, setExamples] = useState<any[]>([])
   const [isRaceDetailsExpanded, setIsRaceDetailsExpanded] = useState(false)
+  
+  // Reset both modes when switching
+  const handleModeChange = (mode: GameMode) => {
+    if (mode !== gameMode) {
+      reset()
+      resetWordle()
+      setGameMode(mode)
+    }
+  }
 
   // Load examples
   useEffect(() => {
@@ -82,65 +116,141 @@ export default function HomePage() {
   const allClues = getAllClues()
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <Zap className="w-8 h-8 text-primary" />
+              <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-primary flex-shrink-0" />
               <div>
-                <h1 className="text-2xl font-bold text-foreground">Crossword Sprint</h1>
-                <p className="text-sm text-muted-foreground">AI Model Race</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">AI Model Races</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  {gameMode === "race" ? "Crossword Sprint" : "Wordle Race"}
+                </p>
               </div>
             </div>
+            
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+              {/* Mode selector */}
+              <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
+                <button
+                  onClick={() => handleModeChange("wordle")}
+                  className={cn(
+                    "px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-2",
+                    gameMode === "wordle"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Grid3x3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Wordle Mode</span>
+                  <span className="sm:hidden">Wordle</span>
+                </button>
+                <button
+                  onClick={() => handleModeChange("race")}
+                  className={cn(
+                    "px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-2",
+                    gameMode === "race"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Puzzle className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Race Mode</span>
+                  <span className="sm:hidden">Race</span>
+                </button>
+              </div>
 
-            <div className="flex items-center gap-4">
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/about" className="flex items-center gap-2">
-                  <Info className="w-4 h-4" />
-                  About
-                </Link>
-              </Button>
-
-              {state && <RaceTimer startedAt={state.startedAt} completedAt={state.completedAt} isRunning={isRunning} />}
-
-              {result && (
-                <Button onClick={exportResults} variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
+              <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/about" className="flex items-center gap-2">
+                    <Info className="w-4 h-4" />
+                    <span className="hidden sm:inline">About</span>
+                  </Link>
                 </Button>
-              )}
 
-              {config && (
-                <Button onClick={reset} variant="outline" size="sm">
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  New Race
-                </Button>
-              )}
+                {(gameMode === "race" ? state : wordleState) && (
+                  <RaceTimer
+                    startedAt={(gameMode === "race" ? state : wordleState)?.startedAt}
+                    completedAt={(gameMode === "race" ? state : wordleState)?.completedAt}
+                    isRunning={gameMode === "race" ? isRunning : isWordleRunning}
+                  />
+                )}
+
+                {(gameMode === "race" ? result : wordleResult) && (
+                  <Button
+                    onClick={() => {
+                      const data = gameMode === "race" ? result : wordleResult
+                      if (!data) return
+                      const jsonData = JSON.stringify(data, null, 2)
+                      const blob = new Blob([jsonData], { type: "application/json" })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement("a")
+                      a.href = url
+                      const id = gameMode === "race" ? (data as any).raceId : (data as any).gameId
+                      a.download = `${gameMode}-${id}.json`
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="hidden sm:flex"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                )}
+
+                {(gameMode === "race" ? config : wordleConfig) && (
+                  <Button
+                    onClick={() => {
+                      if (gameMode === "race") reset()
+                      else resetWordle()
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <RotateCcw className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">New {gameMode === "race" ? "Race" : "Game"}</span>
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 space-y-8">
+      <div className="container mx-auto px-4 py-8 space-y-8 flex-1">
         {/* Setup form (only show if no race is running or completed) */}
-        {!config && examples.length > 0 && (
+        {gameMode === "race" && !config && examples.length > 0 && (
           <div className="max-w-2xl mx-auto">
             <RaceSetupForm onStart={startRace} isRunning={isRunning} examples={examples} />
           </div>
         )}
+        
+        {gameMode === "wordle" && !wordleConfig && (
+          <div className="max-w-2xl mx-auto">
+            <WordleSetupForm
+              onStart={startWordleRace}
+              isRunning={isWordleRunning}
+            />
+          </div>
+        )}
 
         {/* Error display */}
-        {error && (
+        {(gameMode === "race" ? error : wordleError) && (
           <Card className="border-destructive bg-destructive/10">
             <CardContent className="pt-6">
-              <p className="text-destructive font-medium">Error: {error}</p>
+              <p className="text-destructive font-medium">
+                Error: {gameMode === "race" ? error : wordleError}
+              </p>
             </CardContent>
           </Card>
         )}
 
-        {config && state && (
+        {/* Race Mode UI */}
+        {gameMode === "race" && config && state && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
               <Card className="bg-card/50 backdrop-blur border-border">
@@ -169,9 +279,50 @@ export default function HomePage() {
             <LiveClueDisplay currentClue={getCurrentClue()} attempts={allAttempts} isRunning={isRunning} />
           </div>
         )}
+        
+        {/* Wordle Mode UI */}
+        {gameMode === "wordle" && wordleConfig && wordleState && (
+          <div className="space-y-6">
+            <Card className="bg-card/50 backdrop-blur border-border">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-foreground">{wordleConfig.name}</CardTitle>
+                  <Badge variant={wordleState.status === "running" ? "default" : "secondary"} className="uppercase">
+                    {wordleState.status}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Watch AI models race to solve the same Wordle puzzle. Each board shows one model's guesses in real-time.
+                </p>
+              </CardContent>
+            </Card>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {wordleConfig.models.map((model) => {
+                const gameState = wordleModelStates.get(model.id) || {
+                  modelId: model.id,
+                  guesses: [],
+                  solved: false,
+                  failed: false,
+                }
+                return (
+                  <WordleRaceLane
+                    key={model.id}
+                    model={model}
+                    gameState={gameState}
+                    isRunning={isWordleRunning}
+                    isModelWorking={wordleWorkingModels.has(model.id)}
+                  />
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Race lanes */}
-        {config && state && (
+        {gameMode === "race" && config && state && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-foreground">Live Race</h2>
@@ -276,8 +427,13 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Results */}
-        {result && (
+        {/* Wordle Mode Results */}
+        {gameMode === "wordle" && wordleResult && (
+          <WordleResultsPanel result={wordleResult} />
+        )}
+
+        {/* Race Mode Results */}
+        {gameMode === "race" && result && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-center text-foreground">Race Results</h2>
 
@@ -325,6 +481,26 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Footer */}
+      <footer className="border-t border-border bg-card/50 backdrop-blur mt-auto">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+            <div>
+              <p className="text-foreground font-medium mb-1">Built by George Jefferson</p>
+              <p className="text-sm text-muted-foreground">Open source project exploring real-time AI benchmarking</p>
+            </div>
+            <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
+              <a href="https://x.com/GeorgeJeffersn" target="_blank" rel="noopener noreferrer">
+                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                Follow on X
+              </a>
+            </Button>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

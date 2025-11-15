@@ -38,3 +38,43 @@ Length: ${clue.length}`
 export function generatePrompt(clue: Clue, mode: "json" | "plain" = "json"): string {
   return mode === "json" ? generateJsonPrompt(clue) : generatePlainPrompt(clue)
 }
+
+/**
+ * Generate Wordle prompt with previous guesses and feedback
+ */
+export function generateWordlePrompt(
+  targetWord: string,
+  previousGuesses: Array<{ word: string; feedback: Array<"correct" | "present" | "absent"> }>,
+): string {
+  let prompt = `You are playing Wordle. Guess a 5-letter English word.
+
+Rules:
+- You have up to 6 guesses total
+- After each guess, you'll get feedback:
+  * Green (correct): letter is in the word and in the correct position
+  * Yellow (present): letter is in the word but in a different position
+  * Gray (absent): letter is not in the word at all
+- Output ONLY a single 5-letter lowercase word, nothing else
+- No punctuation, no explanation, just the word
+
+`
+
+  if (previousGuesses.length > 0) {
+    prompt += "Previous guesses and feedback:\n"
+    previousGuesses.forEach((guess, index) => {
+      const feedbackStr = guess.feedback
+        .map((f) => {
+          if (f === "correct") return "🟩"
+          if (f === "present") return "🟨"
+          return "⬜"
+        })
+        .join("")
+      prompt += `Guess ${index + 1}: ${guess.word.toUpperCase()} ${feedbackStr}\n`
+    })
+    prompt += "\n"
+  }
+
+  prompt += "Your next guess (output only the 5-letter word):"
+
+  return prompt
+}
