@@ -18,15 +18,21 @@ export function WordleResultsPanel({ result, userGameState }: WordleResultsPanel
 
     const allResults: WordleModelResult[] = [...result.modelResults]
     
+    // Determine if user didn't finish (not solved, not failed, but race is complete)
+    const didNotFinish = !userGameState.solved && !userGameState.failed && userGameState.guesses.length < 6
+    
     // Create user result
     const userResultData: WordleModelResult = {
       modelId: "user",
       modelName: "You",
       solved: userGameState.solved,
-      guessCount: userGameState.solved ? userGameState.solvedAtGuess! : 6,
+      guessCount: userGameState.solved ? userGameState.solvedAtGuess! : userGameState.guesses.length,
       timeToSolveMs: userGameState.timeToSolveMs,
       rank: 0, // Will be calculated
     }
+    
+    // Store didNotFinish flag for display purposes
+    ;(userResultData as any).didNotFinish = didNotFinish
 
     // Add user to results
     allResults.push(userResultData)
@@ -149,6 +155,8 @@ export function WordleResultsPanel({ result, userGameState }: WordleResultsPanel
                                 </>
                               )}
                             </>
+                          ) : (modelResult as any).didNotFinish ? (
+                            "DID NOT FINISH"
                           ) : (
                             `Failed after ${modelResult.guessCount} guesses`
                           )}
@@ -159,6 +167,10 @@ export function WordleResultsPanel({ result, userGameState }: WordleResultsPanel
                       {modelResult.solved ? (
                         <Badge variant="default" className="bg-green-500">
                           Solved
+                        </Badge>
+                      ) : (modelResult as any).didNotFinish ? (
+                        <Badge variant="outline" className="border-orange-500 text-orange-500">
+                          DID NOT FINISH
                         </Badge>
                       ) : (
                         <Badge variant="destructive">Failed</Badge>
