@@ -53,6 +53,7 @@ export function useWordleStream(): UseWordleStreamResult {
   const [includeUser, setIncludeUser] = useState(false)
   const [userGameState, setUserGameState] = useState<WordleGameState | null>(null)
   const [targetWord, setTargetWord] = useState<string | null>(null)
+  const userStartTimeRef = useRef<number | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   const reset = useCallback(() => {
@@ -63,14 +64,15 @@ export function useWordleStream(): UseWordleStreamResult {
     setIsRunning(false)
     setError(null)
     setWorkingModels(new Set())
-    setIncludeUser(false)
-    setUserGameState(null)
-    setTargetWord(null)
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-      abortControllerRef.current = null
-    }
-  }, [])
+      setIncludeUser(false)
+      setUserGameState(null)
+      setTargetWord(null)
+      userStartTimeRef.current = null
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+    }, [])
 
   const startWordleRace = useCallback(
     async (name: string, models?: string[], targetWordParam?: string, includeUserParam?: boolean) => {
@@ -82,6 +84,7 @@ export function useWordleStream(): UseWordleStreamResult {
       
       // Initialize user game state if participating
       if (includeUserParam) {
+        userStartTimeRef.current = Date.now()
         setUserGameState({
           modelId: "user",
           guesses: [],
@@ -269,23 +272,34 @@ export function useWordleStream(): UseWordleStreamResult {
     const feedback = computeWordleFeedback(normalizedWord, targetWord)
     const correct = normalizedWord === targetWord.toLowerCase()
     const now = Date.now()
+    
+    // Calculate time for this guess (time since start or since last guess)
+    const guessStartTime = guessIndex === 0 
+      ? (userStartTimeRef.current || now)
+      : (userGameState.guesses[guessIndex - 1]?.tLast || now)
+    const guessTime = now - guessStartTime
 
     const guess: WordleGuess = {
       modelId: "user",
       guessIndex,
       word: normalizedWord,
       feedback,
-      tRequest: now,
+      tRequest: guessStartTime,
       tFirst: now,
       tLast: now,
-      e2eMs: 0, // User guesses are instant
-      ttftMs: 0,
+      e2eMs: guessTime,
+      ttftMs: guessTime,
       correct,
     }
 
     const newGuesses = [...userGameState.guesses, guess]
     const solved = correct
     const failed = !solved && newGuesses.length >= 6
+    
+    // Calculate total time to solve
+    const totalTime = userStartTimeRef.current 
+      ? now - userStartTimeRef.current 
+      : newGuesses.reduce((sum, g) => sum + g.e2eMs, 0)
 
     setUserGameState({
       modelId: "user",
@@ -293,7 +307,7 @@ export function useWordleStream(): UseWordleStreamResult {
       solved,
       failed,
       solvedAtGuess: solved ? guessIndex + 1 : undefined,
-      timeToSolveMs: solved ? 0 : undefined, // User guesses don't have meaningful timing
+      timeToSolveMs: solved ? totalTime : undefined,
     })
   }, [userGameState, targetWord])
 

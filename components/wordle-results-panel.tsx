@@ -24,7 +24,7 @@ export function WordleResultsPanel({ result, userGameState }: WordleResultsPanel
       modelName: "You",
       solved: userGameState.solved,
       guessCount: userGameState.solved ? userGameState.solvedAtGuess! : 6,
-      timeToSolveMs: userGameState.solved ? 0 : undefined,
+      timeToSolveMs: userGameState.timeToSolveMs,
       rank: 0, // Will be calculated
     }
 

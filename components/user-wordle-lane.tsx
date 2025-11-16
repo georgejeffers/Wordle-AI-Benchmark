@@ -7,7 +7,7 @@ import { Card, CardContent } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Input } from "./ui/input"
 import { Button } from "./ui/button"
-import { CheckCircle2, XCircle, Send } from "lucide-react"
+import { CheckCircle2, XCircle, Send, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface UserWordleLaneProps {
@@ -135,6 +135,18 @@ export function UserWordleLane({ gameState, isRunning, onSubmitGuess, targetWord
                 {gameState.guesses.length}/6
               </span>
             </div>
+            {(gameState.timeToSolveMs !== undefined || gameState.guesses.length > 0) && (
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                <span className="font-semibold text-foreground">
+                  {gameState.timeToSolveMs !== undefined 
+                    ? `${(gameState.timeToSolveMs / 1000).toFixed(1)}s`
+                    : gameState.guesses.length > 0
+                    ? `${(gameState.guesses.reduce((sum, g) => sum + g.e2eMs, 0) / 1000).toFixed(1)}s`
+                    : "0.0s"}
+                </span>
+              </div>
+            )}
             {gameState.solved && gameState.solvedAtGuess && (
               <Badge variant="default" className="bg-green-500">
                 Solved in {gameState.solvedAtGuess} guess{gameState.solvedAtGuess !== 1 ? "es" : ""}

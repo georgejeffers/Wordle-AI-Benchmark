@@ -292,9 +292,23 @@ export default function HomePage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-foreground">{wordleConfig.name}</CardTitle>
-                  <Badge variant={wordleState.status === "running" ? "default" : "secondary"} className="uppercase">
-                    {wordleState.status}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={wordleState.status === "running" ? "default" : "secondary"} className="uppercase">
+                      {wordleState.status}
+                    </Badge>
+                    {wordleState.status === "running" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          resetWordle()
+                        }}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        End Early
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
