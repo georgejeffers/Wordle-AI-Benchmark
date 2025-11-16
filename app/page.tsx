@@ -53,15 +53,31 @@ export default function HomePage() {
   
   const [examples, setExamples] = useState<any[]>([])
   const [isRaceDetailsExpanded, setIsRaceDetailsExpanded] = useState(false)
+  const [blurAI, setBlurAI] = useState(true) // Blur AI grids by default when user is playing
   
   // Reset both modes when switching
   const handleModeChange = (mode: GameMode) => {
     if (mode !== gameMode) {
       reset()
       resetWordle()
+      setBlurAI(true) // Reset blur state
       setGameMode(mode)
     }
   }
+  
+  // Reset blur when starting a new wordle race
+  useEffect(() => {
+    if (wordleIncludeUser && wordleConfig) {
+      setBlurAI(true)
+    }
+  }, [wordleConfig?.id, wordleIncludeUser])
+  
+  // Auto-unblur when race completes
+  useEffect(() => {
+    if (wordleState?.status === "completed" && blurAI) {
+      setBlurAI(false)
+    }
+  }, [wordleState?.status, blurAI])
 
   // Load examples
   useEffect(() => {
@@ -318,35 +334,52 @@ export default function HomePage() {
               </CardContent>
             </Card>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* User lane - shown first if participating */}
-              {wordleIncludeUser && wordleUserGameState && (
-                <UserWordleLane
-                  gameState={wordleUserGameState}
-                  isRunning={isWordleRunning}
-                  onSubmitGuess={wordleSubmitUserGuess}
-                  targetWord={wordleTargetWord || wordleResult?.targetWord}
-                />
-              )}
-              
-              {/* AI model lanes */}
-              {wordleConfig.models.map((model) => {
-                const gameState = wordleModelStates.get(model.id) || {
-                  modelId: model.id,
-                  guesses: [],
-                  solved: false,
-                  failed: false,
-                }
-                return (
-                  <WordleRaceLane
-                    key={model.id}
-                    model={model}
-                    gameState={gameState}
+            <div className="relative">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* User lane - shown first if participating */}
+                {wordleIncludeUser && wordleUserGameState && (
+                  <UserWordleLane
+                    gameState={wordleUserGameState}
                     isRunning={isWordleRunning}
-                    isModelWorking={wordleWorkingModels.has(model.id)}
+                    onSubmitGuess={wordleSubmitUserGuess}
+                    targetWord={wordleTargetWord || wordleResult?.targetWord}
                   />
-                )
-              })}
+                )}
+                
+                {/* AI model lanes */}
+                {wordleConfig.models.map((model) => {
+                  const gameState = wordleModelStates.get(model.id) || {
+                    modelId: model.id,
+                    guesses: [],
+                    solved: false,
+                    failed: false,
+                  }
+                  return (
+                    <WordleRaceLane
+                      key={model.id}
+                      model={model}
+                      gameState={gameState}
+                      isRunning={isWordleRunning}
+                      isModelWorking={wordleWorkingModels.has(model.id)}
+                      blurred={wordleIncludeUser && blurAI && wordleState?.status === "running" && (!wordleUserGameState?.solved && !wordleUserGameState?.failed)}
+                    />
+                  )
+                })}
+              </div>
+              
+              {/* Show/Hide AI button overlay - appears over blurred area */}
+              {wordleIncludeUser && wordleState?.status === "running" && (!wordleUserGameState?.solved && !wordleUserGameState?.failed) && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <Button
+                    variant="default"
+                    size="lg"
+                    onClick={() => setBlurAI(!blurAI)}
+                    className="pointer-events-auto bg-primary/90 hover:bg-primary text-primary-foreground shadow-lg z-10"
+                  >
+                    {blurAI ? "Show AI Guesses" : "Hide AI Guesses"}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}

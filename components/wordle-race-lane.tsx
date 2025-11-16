@@ -13,14 +13,18 @@ interface WordleRaceLaneProps {
   gameState: WordleGameState
   isRunning: boolean
   isModelWorking: boolean
+  blurred?: boolean
 }
 
-export function WordleRaceLane({ model, gameState, isRunning, isModelWorking }: WordleRaceLaneProps) {
+export function WordleRaceLane({ model, gameState, isRunning, isModelWorking, blurred = false }: WordleRaceLaneProps) {
   const color = MODEL_COLORS[model.id] || "#6366f1"
   const totalTime = gameState.guesses.reduce((sum, g) => sum + g.e2eMs, 0)
 
   return (
-    <Card className="bg-card/50 backdrop-blur border-border">
+    <Card className={cn(
+      "bg-card/50 backdrop-blur border-border transition-all duration-300",
+      blurred && "blur-sm opacity-60 pointer-events-none"
+    )}>
       <CardContent className="p-4">
         <div className="flex flex-col items-center gap-3">
           {/* Model header */}
