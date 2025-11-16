@@ -1,24 +1,36 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { DEFAULT_MODELS } from "@/lib/constants"
-import { PlayCircle, Loader2 } from "lucide-react"
+import { PlayCircle, Loader2, Plus, Trash2 } from "lucide-react"
+import { CustomEntryDialog } from "@/components/custom-entry-dialog"
+import { getCustomEntries, deleteCustomEntry } from "@/lib/custom-entries"
+import type { CustomEntry, ModelConfig } from "@/lib/types"
 
 interface WordleSetupFormProps {
-  onStart: (name: string, models: string[], targetWord?: string, includeUser?: boolean) => void
+  onStart: (name: string, models: ModelConfig[], targetWord?: string, includeUser?: boolean) => void
   isRunning: boolean
 }
 
 export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
   const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_MODELS.map((m) => m.id))
+  const [selectedCustomEntries, setSelectedCustomEntries] = useState<string[]>([])
   const [wordMode, setWordMode] = useState<"random" | "custom">("random")
   const [customWord, setCustomWord] = useState("")
   const [wordError, setWordError] = useState("")
   const [includeUser, setIncludeUser] = useState(false)
+  const [customEntries, setCustomEntries] = useState<CustomEntry[]>([])
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingEntry, setEditingEntry] = useState<CustomEntry | null>(null)
+
+  // Load custom entries on mount
+  useEffect(() => {
+    setCustomEntries(getCustomEntries())
+  }, [])
 
   const handleStart = () => {
     // Validate custom word if selected
@@ -37,10 +49,38 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
         return
       }
       setWordError("")
-      onStart("Wordle Race", selectedModels, trimmed, includeUser)
-    } else {
-      onStart("Wordle Race", selectedModels, undefined, includeUser)
     }
+
+    // Build model configs - include base models and custom entries as separate entries
+    // This allows "model + my prompt" vs "model + your prompt" battles
+    const modelConfigs: ModelConfig[] = []
+    
+    // Add all selected base models (they'll use default prompts)
+    selectedModels.forEach((modelId) => {
+      const defaultModel = DEFAULT_MODELS.find((m) => m.id === modelId)!
+      modelConfigs.push({ ...defaultModel })
+    })
+    
+    // Add custom entries as separate model configs with unique IDs
+    // These will appear as separate entries in the race grid
+    selectedCustomEntries.forEach((entryId) => {
+      const customEntry = customEntries.find((e) => e.id === entryId)
+      if (customEntry) {
+        const baseModel = DEFAULT_MODELS.find((m) => m.id === customEntry.modelId)
+        if (baseModel) {
+          modelConfigs.push({
+            ...baseModel,
+            id: customEntry.id, // Use custom entry ID directly (already unique)
+            name: customEntry.name, // Use custom entry name for display
+            customPrompt: customEntry.prompt,
+            baseModelId: baseModel.id, // Store base model ID for cost calculation
+          })
+        }
+      }
+    })
+
+    const targetWord = wordMode === "custom" ? customWord.trim().toLowerCase() : undefined
+    onStart("Wordle Race", modelConfigs, targetWord, includeUser)
   }
 
   const handleCustomWordChange = (value: string) => {
@@ -53,6 +93,42 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
 
   const toggleModel = (modelId: string) => {
     setSelectedModels((prev) => (prev.includes(modelId) ? prev.filter((id) => id !== modelId) : [...prev, modelId]))
+    // Remove custom entries for this model if deselected
+    if (!selectedModels.includes(modelId)) {
+      setSelectedCustomEntries((prev) =>
+        prev.filter((entryId) => {
+          const entry = customEntries.find((e) => e.id === entryId)
+          return entry?.modelId !== modelId
+        })
+      )
+    }
+  }
+
+  const toggleCustomEntry = (entryId: string) => {
+    setSelectedCustomEntries((prev) =>
+      prev.includes(entryId) ? prev.filter((id) => id !== entryId) : [...prev, entryId]
+    )
+  }
+
+  const handleCreateCustom = () => {
+    setEditingEntry(null)
+    setDialogOpen(true)
+  }
+
+  const handleEditCustom = (entry: CustomEntry) => {
+    setEditingEntry(entry)
+    setDialogOpen(true)
+  }
+
+  const handleDeleteCustom = (entryId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    deleteCustomEntry(entryId)
+    setCustomEntries(getCustomEntries())
+    setSelectedCustomEntries((prev) => prev.filter((id) => id !== entryId))
+  }
+
+  const handleSaveCustom = (entry: CustomEntry) => {
+    setCustomEntries(getCustomEntries())
   }
 
   return (
@@ -167,6 +243,81 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
           </div>
         </div>
 
+        {/* Custom Entries */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-foreground">Custom Entries</Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCreateCustom}
+              disabled={isRunning}
+              className="h-8"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Create Custom
+            </Button>
+          </div>
+          {customEntries.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Create custom entries to use your own prompts with specific models
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {customEntries.map((entry) => {
+                const model = DEFAULT_MODELS.find((m) => m.id === entry.modelId)
+                const isSelected = selectedCustomEntries.includes(entry.id)
+                const isModelSelected = selectedModels.includes(entry.modelId)
+                
+                return (
+                  <div
+                    key={entry.id}
+                    className={`p-3 rounded-lg border text-sm transition-all cursor-pointer ${
+                      isSelected && isModelSelected
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-muted"
+                    } ${!isModelSelected ? "opacity-50" : ""}`}
+                    onClick={() => {
+                      if (isModelSelected) {
+                        toggleCustomEntry(entry.id)
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-foreground">{entry.name}</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {model?.name || entry.modelId}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isSelected && isModelSelected && (
+                          <span className="text-xs text-primary font-medium">Active</span>
+                        )}
+                        <button
+                          onClick={(e) => handleEditCustom(entry)}
+                          className="text-muted-foreground hover:text-foreground p-1"
+                          disabled={isRunning}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteCustom(entry.id, e)}
+                          className="text-muted-foreground hover:text-destructive p-1"
+                          disabled={isRunning}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Start button */}
         <Button
           onClick={handleStart}
@@ -187,6 +338,12 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
           )}
         </Button>
       </CardContent>
+      <CustomEntryDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={handleSaveCustom}
+        editingEntry={editingEntry}
+      />
     </Card>
   )
 }

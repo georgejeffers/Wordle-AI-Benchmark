@@ -9,7 +9,7 @@ export const maxDuration = 300
 
 interface StartWordleRequest {
   name?: string
-  models?: string[]
+  models?: ModelConfig[] // Now accepts full ModelConfig objects with custom prompts
   targetWord?: string // Optional - for testing/reproducibility
   includeUser?: boolean // If true, send targetWord to client for user participation
 }
@@ -37,11 +37,25 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  // Select models
-  const selectedModelIds = body.models || DEFAULT_MODELS.map((m) => m.id)
-  const models: ModelConfig[] = selectedModelIds
-    .map((id) => DEFAULT_MODELS.find((m) => m.id === id))
-    .filter((m): m is ModelConfig => m !== undefined)
+  // Handle models - can be ModelConfig[] or string[] (for backward compatibility)
+  let models: ModelConfig[]
+  if (body.models && body.models.length > 0) {
+    // Check if first element is a string (old format) or object (new format)
+    const firstModel = body.models[0]
+    if (typeof firstModel === "string") {
+      // Old format: string[]
+      const selectedModelIds = body.models as unknown as string[]
+      models = selectedModelIds
+        .map((id) => DEFAULT_MODELS.find((m) => m.id === id))
+        .filter((m): m is ModelConfig => m !== undefined)
+    } else {
+      // New format: ModelConfig[]
+      models = body.models as ModelConfig[]
+    }
+  } else {
+    // Default: use all models
+    models = DEFAULT_MODELS.map((m) => ({ ...m }))
+  }
 
   if (models.length === 0) {
     console.error("[wordle] No valid models found")

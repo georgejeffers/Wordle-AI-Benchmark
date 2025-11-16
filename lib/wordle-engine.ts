@@ -114,8 +114,12 @@ export class WordleEngine {
         this.callbacks.onModelStart(model.id, guessIndex)
       }
 
-      // Generate prompt with previous guesses
-      const prompt = generateWordlePrompt(this.config.targetWord, previousGuesses)
+      // Generate prompt with previous guesses (use custom prompt if available)
+      const prompt = generateWordlePrompt(
+        this.config.targetWord,
+        previousGuesses,
+        model.customPrompt
+      )
 
       // Create a synthetic clue for the AI runner
       const syntheticClue: Clue = {
@@ -286,7 +290,9 @@ export class WordleEngine {
       })
 
       if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
-        totalCost = calculateEstimatedCost(model.id, totalPromptTokens, totalCompletionTokens)
+        // Use baseModelId for cost calculation if this is a custom entry
+        const modelIdForCost = model.baseModelId || model.id
+        totalCost = calculateEstimatedCost(modelIdForCost, totalPromptTokens, totalCompletionTokens)
       }
 
       results.push({

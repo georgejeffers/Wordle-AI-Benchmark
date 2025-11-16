@@ -45,7 +45,69 @@ export function generatePrompt(clue: Clue, mode: "json" | "plain" = "json"): str
 export function generateWordlePrompt(
   targetWord: string,
   previousGuesses: Array<{ word: string; feedback: Array<"correct" | "present" | "absent"> }>,
+  customTemplate?: string,
 ): string {
+  // If custom template is provided, use it and append previous guesses
+  if (customTemplate) {
+    let prompt = customTemplate
+
+    // Append previous guesses section if we have any
+    if (previousGuesses.length > 0) {
+      // Check if the template already includes previous guesses (simple heuristic)
+      const hasPreviousGuesses = prompt.toLowerCase().includes("previous") || 
+                                  prompt.toLowerCase().includes("guess")
+      
+      if (!hasPreviousGuesses) {
+        prompt += "\n\nPrevious guesses and feedback:\n"
+        previousGuesses.forEach((guess, index) => {
+          const feedbackStr = guess.feedback
+            .map((f) => {
+              if (f === "correct") return "🟩"
+              if (f === "present") return "🟨"
+              return "⬜"
+            })
+            .join("")
+          prompt += `Guess ${index + 1}: ${guess.word.toUpperCase()} ${feedbackStr}\n`
+        })
+        prompt += "\n"
+      } else {
+        // Template already has previous guesses section, inject them
+        // Replace placeholder patterns if they exist
+        const guessPlaceholder = /{{PREVIOUS_GUESSES}}/i
+        if (guessPlaceholder.test(prompt)) {
+          let guessesText = ""
+          previousGuesses.forEach((guess, index) => {
+            const feedbackStr = guess.feedback
+              .map((f) => {
+                if (f === "correct") return "🟩"
+                if (f === "present") return "🟨"
+                return "⬜"
+              })
+              .join("")
+            guessesText += `Guess ${index + 1}: ${guess.word.toUpperCase()} ${feedbackStr}\n`
+          })
+          prompt = prompt.replace(guessPlaceholder, guessesText)
+        } else {
+          // Append at the end if no placeholder
+          prompt += "\n\nPrevious guesses:\n"
+          previousGuesses.forEach((guess, index) => {
+            const feedbackStr = guess.feedback
+              .map((f) => {
+                if (f === "correct") return "🟩"
+                if (f === "present") return "🟨"
+                return "⬜"
+              })
+              .join("")
+            prompt += `Guess ${index + 1}: ${guess.word.toUpperCase()} ${feedbackStr}\n`
+          })
+        }
+      }
+    }
+
+    return prompt
+  }
+
+  // Default prompt generation
   let prompt = `You are playing Wordle. Guess a 5-letter English word.
 
 Rules:

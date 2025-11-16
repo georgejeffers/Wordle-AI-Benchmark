@@ -36,7 +36,7 @@ interface UseWordleStreamResult {
   userGameState: WordleGameState | null
   targetWord: string | null
   submitUserGuess: (word: string) => void
-  startWordleRace: (name: string, models?: string[], targetWord?: string, includeUser?: boolean) => Promise<void>
+  startWordleRace: (name: string, models?: ModelConfig[], targetWord?: string, includeUser?: boolean) => Promise<void>
   endEarly: () => void
   reset: () => void
 }
@@ -77,7 +77,7 @@ export function useWordleStream(): UseWordleStreamResult {
     }, [])
 
   const startWordleRace = useCallback(
-    async (name: string, models?: string[], targetWordParam?: string, includeUserParam?: boolean) => {
+    async (name: string, models?: ModelConfig[], targetWordParam?: string, includeUserParam?: boolean) => {
       reset()
       setIsRunning(true)
       setError(null)
@@ -104,7 +104,7 @@ export function useWordleStream(): UseWordleStreamResult {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             name, 
-            models, 
+            models: models || [], 
             targetWord: targetWordParam,
             includeUser: includeUserParam || false,
           }),
@@ -417,7 +417,9 @@ export function useWordleStream(): UseWordleStreamResult {
       })
 
       if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
-        totalCost = calculateEstimatedCost(model.id, totalPromptTokens, totalCompletionTokens)
+        // Use baseModelId for cost calculation if this is a custom entry
+        const modelIdForCost = model.baseModelId || model.id
+        totalCost = calculateEstimatedCost(modelIdForCost, totalPromptTokens, totalCompletionTokens)
       }
 
       modelResults.push({

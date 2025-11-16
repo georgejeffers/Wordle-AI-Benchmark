@@ -30,6 +30,16 @@ export interface ModelConfig {
   modelString: string // e.g. "openai/gpt-5", "anthropic/claude-4.5"
   temperature?: number // default 0.1
   topP?: number // default 1
+  customPrompt?: string // Custom prompt override for Wordle (optional)
+  baseModelId?: string // For custom entries: the original model ID for cost calculation
+}
+
+export interface CustomEntry {
+  id: string
+  name: string
+  modelId: string
+  prompt: string
+  createdAt: number
 }
 
 export interface RaceConfig {
