@@ -11,6 +11,7 @@ interface StartWordleRequest {
   name?: string
   models?: string[]
   targetWord?: string // Optional - for testing/reproducibility
+  includeUser?: boolean // If true, send targetWord to client for user participation
 }
 
 /**
@@ -75,14 +76,18 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       try {
         console.log("[wordle] Stream started, sending config...")
-        // Send config without target word
-        const clientConfig = {
+        // Send config - include target word if user is participating
+        const clientConfig: any = {
           id: wordleConfig.id,
           name: wordleConfig.name,
           models: wordleConfig.models,
           wordLength: wordleConfig.wordLength,
           maxGuesses: wordleConfig.maxGuesses,
           createdAt: wordleConfig.createdAt,
+        }
+        // Include target word if user is participating (so they can play)
+        if (body.includeUser) {
+          clientConfig.targetWord = wordleConfig.targetWord
         }
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "config", config: clientConfig })}\n\n`))
 

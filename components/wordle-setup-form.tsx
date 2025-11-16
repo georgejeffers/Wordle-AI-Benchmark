@@ -9,16 +9,46 @@ import { DEFAULT_MODELS } from "@/lib/constants"
 import { PlayCircle, Loader2 } from "lucide-react"
 
 interface WordleSetupFormProps {
-  onStart: (name: string, models: string[]) => void
+  onStart: (name: string, models: string[], targetWord?: string, includeUser?: boolean) => void
   isRunning: boolean
 }
 
 export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
-  const [raceName, setRaceName] = useState("")
   const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_MODELS.map((m) => m.id))
+  const [wordMode, setWordMode] = useState<"random" | "custom">("random")
+  const [customWord, setCustomWord] = useState("")
+  const [wordError, setWordError] = useState("")
+  const [includeUser, setIncludeUser] = useState(false)
 
   const handleStart = () => {
-    onStart(raceName || "Wordle Race", selectedModels)
+    // Validate custom word if selected
+    if (wordMode === "custom") {
+      const trimmed = customWord.trim().toLowerCase()
+      if (!trimmed) {
+        setWordError("Please enter a word")
+        return
+      }
+      if (trimmed.length !== 5) {
+        setWordError("Word must be exactly 5 letters")
+        return
+      }
+      if (!/^[a-z]{5}$/.test(trimmed)) {
+        setWordError("Word must contain only letters")
+        return
+      }
+      setWordError("")
+      onStart("Wordle Race", selectedModels, trimmed, includeUser)
+    } else {
+      onStart("Wordle Race", selectedModels, undefined, includeUser)
+    }
+  }
+
+  const handleCustomWordChange = (value: string) => {
+    const trimmed = value.trim().toLowerCase().slice(0, 5)
+    setCustomWord(trimmed)
+    if (wordError && trimmed.length === 5 && /^[a-z]{5}$/.test(trimmed)) {
+      setWordError("")
+    }
   }
 
   const toggleModel = (modelId: string) => {
@@ -34,19 +64,84 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Race name */}
+        {/* Word selection */}
+        <div className="space-y-3">
+          <Label className="text-foreground">Target Word</Label>
+          <div className="space-y-3">
+            {/* Random word option */}
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="radio"
+                name="word-mode"
+                value="random"
+                checked={wordMode === "random"}
+                onChange={() => {
+                  setWordMode("random")
+                  setWordError("")
+                }}
+                disabled={isRunning}
+                className="w-4 h-4 text-primary"
+              />
+              <span className="text-foreground">Use random word from list</span>
+            </label>
+
+            {/* Custom word option */}
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="radio"
+                name="word-mode"
+                value="custom"
+                checked={wordMode === "custom"}
+                onChange={() => {
+                  setWordMode("custom")
+                  setWordError("")
+                }}
+                disabled={isRunning}
+                className="w-4 h-4 text-primary"
+              />
+              <span className="text-foreground">Set custom word</span>
+            </label>
+
+            {/* Custom word input */}
+            {wordMode === "custom" && (
+              <div className="ml-6 space-y-2">
+                <Input
+                  id="custom-word"
+                  placeholder="Enter 5-letter word"
+                  value={customWord}
+                  onChange={(e) => handleCustomWordChange(e.target.value)}
+                  disabled={isRunning}
+                  className={`bg-muted text-foreground ${wordError ? "border-destructive" : ""}`}
+                  maxLength={5}
+                />
+                {wordError && (
+                  <p className="text-sm text-destructive">{wordError}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Enter a 5-letter word for the AI models to solve
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* User participation */}
         <div className="space-y-2">
-          <Label htmlFor="wordle-name" className="text-foreground">
-            Race Name (Optional)
-          </Label>
-          <Input
-            id="wordle-name"
-            placeholder="My Wordle Race"
-            value={raceName}
-            onChange={(e) => setRaceName(e.target.value)}
-            disabled={isRunning}
-            className="bg-muted text-foreground"
-          />
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeUser}
+              onChange={(e) => setIncludeUser(e.target.checked)}
+              disabled={isRunning}
+              className="w-4 h-4 text-primary rounded"
+            />
+            <span className="text-foreground">Join as player and race against AI</span>
+          </label>
+          {includeUser && (
+            <p className="text-xs text-muted-foreground ml-6">
+              You'll be able to make your own guesses and see how you rank against the AI models
+            </p>
+          )}
         </div>
 
         {/* Model selection */}
@@ -75,7 +170,7 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
         {/* Start button */}
         <Button
           onClick={handleStart}
-          disabled={isRunning || selectedModels.length === 0}
+          disabled={isRunning || selectedModels.length === 0 || (wordMode === "custom" && !customWord.trim())}
           className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
           size="lg"
         >

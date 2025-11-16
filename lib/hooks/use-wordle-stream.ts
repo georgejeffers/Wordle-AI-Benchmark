@@ -9,10 +9,11 @@ import type {
   WordleRaceResult,
   ModelConfig,
 } from "@/lib/types"
+import { computeWordleFeedback } from "@/lib/wordle-utils"
 
 interface StreamEvent {
   type: "config" | "state" | "modelStart" | "guess" | "modelComplete" | "complete" | "error"
-  config?: Omit<WordleConfig, "targetWord"> // Config without target word
+  config?: Omit<WordleConfig, "targetWord"> & { targetWord?: string } // Config may include target word if user is participating
   state?: WordleState & { modelStates?: Record<string, WordleGameState> }
   modelId?: string
   guessIndex?: number
@@ -30,7 +31,11 @@ interface UseWordleStreamResult {
   isRunning: boolean
   error: string | null
   workingModels: Set<string>
-  startWordleRace: (name: string, models?: string[]) => Promise<void>
+  includeUser: boolean
+  userGameState: WordleGameState | null
+  targetWord: string | null
+  submitUserGuess: (word: string) => void
+  startWordleRace: (name: string, models?: string[], targetWord?: string, includeUser?: boolean) => Promise<void>
   reset: () => void
 }
 
@@ -45,6 +50,9 @@ export function useWordleStream(): UseWordleStreamResult {
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [workingModels, setWorkingModels] = useState<Set<string>>(new Set())
+  const [includeUser, setIncludeUser] = useState(false)
+  const [userGameState, setUserGameState] = useState<WordleGameState | null>(null)
+  const [targetWord, setTargetWord] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   const reset = useCallback(() => {
@@ -55,6 +63,9 @@ export function useWordleStream(): UseWordleStreamResult {
     setIsRunning(false)
     setError(null)
     setWorkingModels(new Set())
+    setIncludeUser(false)
+    setUserGameState(null)
+    setTargetWord(null)
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
       abortControllerRef.current = null
@@ -62,10 +73,22 @@ export function useWordleStream(): UseWordleStreamResult {
   }, [])
 
   const startWordleRace = useCallback(
-    async (name: string, models?: string[]) => {
+    async (name: string, models?: string[], targetWordParam?: string, includeUserParam?: boolean) => {
       reset()
       setIsRunning(true)
       setError(null)
+      setIncludeUser(includeUserParam || false)
+      setTargetWord(targetWordParam || null)
+      
+      // Initialize user game state if participating
+      if (includeUserParam) {
+        setUserGameState({
+          modelId: "user",
+          guesses: [],
+          solved: false,
+          failed: false,
+        })
+      }
 
       const abortController = new AbortController()
       abortControllerRef.current = abortController
@@ -74,7 +97,12 @@ export function useWordleStream(): UseWordleStreamResult {
         const response = await fetch("/api/wordle/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, models }),
+          body: JSON.stringify({ 
+            name, 
+            models, 
+            targetWord: targetWordParam,
+            includeUser: includeUserParam || false,
+          }),
           signal: abortController.signal,
         })
 
@@ -104,7 +132,13 @@ export function useWordleStream(): UseWordleStreamResult {
 
                 switch (event.type) {
                   case "config":
-                    if (event.config) setConfig(event.config)
+                    if (event.config) {
+                      setConfig(event.config)
+                      // Store target word if provided (when user is participating)
+                      if (event.config.targetWord) {
+                        setTargetWord(event.config.targetWord)
+                      }
+                    }
                     break
                   case "state":
                     if (event.state) {
@@ -183,6 +217,10 @@ export function useWordleStream(): UseWordleStreamResult {
                   case "complete":
                     if (event.result) {
                       setResult(event.result)
+                      // Store target word when race completes (for user to see)
+                      if (event.result.targetWord) {
+                        setTargetWord(event.result.targetWord)
+                      }
                       setIsRunning(false)
                       setWorkingModels(new Set())
                     }
@@ -213,6 +251,52 @@ export function useWordleStream(): UseWordleStreamResult {
     [reset],
   )
 
+  const submitUserGuess = useCallback((word: string) => {
+    if (!userGameState || userGameState.solved || userGameState.failed || !targetWord) {
+      return
+    }
+
+    const normalizedWord = word.toLowerCase().trim()
+    if (normalizedWord.length !== 5 || !/^[a-z]{5}$/.test(normalizedWord)) {
+      return
+    }
+
+    const guessIndex = userGameState.guesses.length
+    if (guessIndex >= 6) {
+      return
+    }
+
+    const feedback = computeWordleFeedback(normalizedWord, targetWord)
+    const correct = normalizedWord === targetWord.toLowerCase()
+    const now = Date.now()
+
+    const guess: WordleGuess = {
+      modelId: "user",
+      guessIndex,
+      word: normalizedWord,
+      feedback,
+      tRequest: now,
+      tFirst: now,
+      tLast: now,
+      e2eMs: 0, // User guesses are instant
+      ttftMs: 0,
+      correct,
+    }
+
+    const newGuesses = [...userGameState.guesses, guess]
+    const solved = correct
+    const failed = !solved && newGuesses.length >= 6
+
+    setUserGameState({
+      modelId: "user",
+      guesses: newGuesses,
+      solved,
+      failed,
+      solvedAtGuess: solved ? guessIndex + 1 : undefined,
+      timeToSolveMs: solved ? 0 : undefined, // User guesses don't have meaningful timing
+    })
+  }, [userGameState, targetWord])
+
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -229,6 +313,10 @@ export function useWordleStream(): UseWordleStreamResult {
     isRunning,
     error,
     workingModels,
+    includeUser,
+    userGameState,
+    targetWord,
+    submitUserGuess,
     startWordleRace,
     reset,
   }

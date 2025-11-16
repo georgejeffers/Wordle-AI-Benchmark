@@ -7,6 +7,7 @@ import { RaceSetupForm } from "@/components/race-setup-form"
 import { WordleSetupForm } from "@/components/wordle-setup-form"
 import { RaceLane } from "@/components/race-lane"
 import { WordleRaceLane } from "@/components/wordle-race-lane"
+import { UserWordleLane } from "@/components/user-wordle-lane"
 import { RacePodium } from "@/components/race-podium"
 import { RaceStatsPanel } from "@/components/race-stats-panel"
 import { WordleResultsPanel } from "@/components/wordle-results-panel"
@@ -44,6 +45,10 @@ export default function HomePage() {
     startWordleRace,
     reset: resetWordle,
     workingModels: wordleWorkingModels,
+    includeUser: wordleIncludeUser,
+    userGameState: wordleUserGameState,
+    targetWord: wordleTargetWord,
+    submitUserGuess: wordleSubmitUserGuess,
   } = wordleStream
   
   const [examples, setExamples] = useState<any[]>([])
@@ -300,6 +305,17 @@ export default function HomePage() {
             </Card>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* User lane - shown first if participating */}
+              {wordleIncludeUser && wordleUserGameState && (
+                <UserWordleLane
+                  gameState={wordleUserGameState}
+                  isRunning={isWordleRunning}
+                  onSubmitGuess={wordleSubmitUserGuess}
+                  targetWord={wordleTargetWord || wordleResult?.targetWord}
+                />
+              )}
+              
+              {/* AI model lanes */}
               {wordleConfig.models.map((model) => {
                 const gameState = wordleModelStates.get(model.id) || {
                   modelId: model.id,
@@ -429,7 +445,10 @@ export default function HomePage() {
 
         {/* Wordle Mode Results */}
         {gameMode === "wordle" && wordleResult && (
-          <WordleResultsPanel result={wordleResult} />
+          <WordleResultsPanel 
+            result={wordleResult} 
+            userGameState={wordleIncludeUser ? wordleUserGameState : null}
+          />
         )}
 
         {/* Race Mode Results */}
