@@ -53,9 +53,30 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     topP: 1,
   },
   {
+    id: "kimi-k2-0905",
+    name: "Kimi K2 0905 (Groq)",
+    modelString: "groq/moonshotai/kimi-k2-instruct-0905",
+    temperature: 0.1,
+    topP: 1,
+  },
+  {
+    id: "qwen3-32b",
+    name: "Qwen3-32B (Groq)",
+    modelString: "groq/qwen/qwen3-32b",
+    temperature: 0.1,
+    topP: 1,
+  },
+  {
     id: "gpt-4.1-mini",
     name: "GPT-4.1 Mini",
     modelString: "openai/gpt-4.1-mini",
+    temperature: 0.1,
+    topP: 1,
+  },
+  {
+    id: "grok-4-fast",
+    name: "Grok 4 Fast",
+    modelString: "xai/grok-4-fast-non-reasoning",
     temperature: 0.1,
     topP: 1,
   },
@@ -75,5 +96,8 @@ export const MODEL_COLORS: Record<string, string> = {
   "claude-haiku-4.5": "#a855f7", // purple
   "claude-sonnet-4.5": "#8b5cf6", // violet
   "llama-3.3-70b": "#f97316", // orange
+  "kimi-k2-0905": "#ea580c", // darker orange
+  "qwen3-32b": "#dc2626", // red-orange
   "gpt-4.1-mini": "#14b8a6", // teal
+  "grok-4-fast": "#00d4aa", // grok green/teal
 }

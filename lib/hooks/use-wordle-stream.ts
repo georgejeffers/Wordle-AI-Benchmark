@@ -7,9 +7,10 @@ import type {
   WordleGuess,
   WordleGameState,
   WordleRaceResult,
+  WordleModelResult,
   ModelConfig,
 } from "@/lib/types"
-import { computeWordleFeedback } from "@/lib/wordle-utils"
+import { computeWordleFeedback, calculateClosenessScore, calculateEstimatedCost } from "@/lib/wordle-utils"
 
 interface StreamEvent {
   type: "config" | "state" | "modelStart" | "guess" | "modelComplete" | "complete" | "error"
@@ -36,6 +37,7 @@ interface UseWordleStreamResult {
   targetWord: string | null
   submitUserGuess: (word: string) => void
   startWordleRace: (name: string, models?: string[], targetWord?: string, includeUser?: boolean) => Promise<void>
+  endEarly: () => void
   reset: () => void
 }
 
@@ -311,6 +313,256 @@ export function useWordleStream(): UseWordleStreamResult {
     })
   }, [userGameState, targetWord])
 
+  const endEarly = useCallback(() => {
+    const existingResult = result // Get existing result from state before we create new one
+    console.log("[wordle] endEarly called", { config: !!config, state: !!state, targetWord: !!targetWord, existingResult: !!existingResult })
+    
+    if (!config || !state) {
+      console.warn("[wordle] Cannot end early: missing config or state")
+      return
+    }
+
+    // Get target word from existing result if available, otherwise use stored targetWord
+    // If still not available, try to infer from solved models' guesses
+    let finalTargetWord = existingResult?.targetWord || targetWord
+    
+    if (!finalTargetWord) {
+      // Try to infer target word from solved models
+      for (const [modelId, gameState] of modelStates.entries()) {
+        if (gameState.solved && gameState.guesses.length > 0) {
+          const solvedGuess = gameState.guesses.find(g => g.correct)
+          if (solvedGuess) {
+            finalTargetWord = solvedGuess.word
+            console.log("[wordle] Inferred target word from solved model:", finalTargetWord)
+            break
+          }
+        }
+      }
+    }
+    
+    // If still no target word, use placeholder (will be revealed in results)
+    if (!finalTargetWord) {
+      console.warn("[wordle] Target word not available - using placeholder")
+      finalTargetWord = "?????" // Placeholder
+    }
+
+    // Abort the stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+
+    // Calculate final results from current model states
+    const modelResults: WordleModelResult[] = []
+    const now = Date.now()
+    const gameStartTime = state.startedAt || now
+
+    // Process each AI model
+    config.models.forEach((model) => {
+      const gameState = modelStates.get(model.id) || {
+        modelId: model.id,
+        guesses: [],
+        solved: false,
+        failed: false,
+      }
+
+      const isStillRunning = workingModels.has(model.id)
+      const didNotFinish = isStillRunning && !gameState.solved && !gameState.failed
+
+      // Calculate total time spent
+      let totalTime: number | undefined
+      if (gameState.solved && gameState.timeToSolveMs) {
+        totalTime = gameState.timeToSolveMs
+      } else if (gameState.guesses.length > 0) {
+        // Calculate time from first guess to last guess, or to now if still running
+        const firstGuess = gameState.guesses[0]
+        const lastGuess = gameState.guesses[gameState.guesses.length - 1]
+        if (didNotFinish) {
+          // Still running - use time from start to now
+          totalTime = now - gameStartTime
+        } else {
+          // Use time from first to last guess
+          totalTime = lastGuess.tLast - firstGuess.tRequest
+        }
+      } else if (didNotFinish) {
+        // Started but no guesses yet - use time from start to now
+        totalTime = now - gameStartTime
+      }
+
+      // Calculate closeness for failed/didn't finish attempts (feedback is already calculated)
+      let closenessScore: number | undefined
+      let correctLetters: number | undefined
+      let presentLetters: number | undefined
+
+      if (!gameState.solved && gameState.guesses.length > 0) {
+        const lastGuess = gameState.guesses[gameState.guesses.length - 1]
+        const closeness = calculateClosenessScore(lastGuess.feedback)
+        closenessScore = closeness.totalScore
+        correctLetters = closeness.correctCount
+        presentLetters = closeness.presentCount
+      }
+
+      // Calculate total tokens and cost
+      let totalTokens = 0
+      let totalCost = 0
+      let totalPromptTokens = 0
+      let totalCompletionTokens = 0
+
+      gameState.guesses.forEach((guess) => {
+        if (guess.tokenUsage) {
+          totalTokens += guess.tokenUsage.total
+          totalPromptTokens += guess.tokenUsage.prompt
+          totalCompletionTokens += guess.tokenUsage.completion
+        }
+      })
+
+      if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
+        totalCost = calculateEstimatedCost(model.id, totalPromptTokens, totalCompletionTokens)
+      }
+
+      modelResults.push({
+        modelId: model.id,
+        modelName: model.name,
+        solved: gameState.solved,
+        guessCount: gameState.solved ? gameState.solvedAtGuess! : gameState.guesses.length,
+        timeToSolveMs: gameState.solved ? totalTime : didNotFinish ? totalTime : undefined,
+        closenessScore,
+        correctLetters,
+        presentLetters,
+        totalTokens: totalTokens > 0 ? totalTokens : undefined,
+        totalCost: totalCost > 0 ? totalCost : undefined,
+        didNotFinish,
+        rank: 0, // Will be set after sorting
+      })
+    })
+
+    // Add user result if participating
+    if (includeUser && userGameState) {
+      const didNotFinish = !userGameState.solved && !userGameState.failed && userGameState.guesses.length < 6
+
+      // Calculate closeness for failed attempts (only if we have target word)
+      let closenessScore: number | undefined
+      let correctLetters: number | undefined
+      let presentLetters: number | undefined
+
+      if (finalTargetWord && !userGameState.solved && userGameState.guesses.length > 0) {
+        const lastGuess = userGameState.guesses[userGameState.guesses.length - 1]
+        const closeness = calculateClosenessScore(lastGuess.feedback)
+        closenessScore = closeness.totalScore
+        correctLetters = closeness.correctCount
+        presentLetters = closeness.presentCount
+      }
+
+      // Calculate total tokens and cost for user
+      let totalTokens = 0
+      let totalCost = 0
+      let totalPromptTokens = 0
+      let totalCompletionTokens = 0
+
+      userGameState.guesses.forEach((guess) => {
+        if (guess.tokenUsage) {
+          totalTokens += guess.tokenUsage.total
+          totalPromptTokens += guess.tokenUsage.prompt
+          totalCompletionTokens += guess.tokenUsage.completion
+        }
+      })
+
+      if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
+        totalCost = calculateEstimatedCost("user", totalPromptTokens, totalCompletionTokens)
+      }
+
+      // Calculate time spent
+      let totalTime: number | undefined
+      if (userGameState.solved && userGameState.timeToSolveMs) {
+        totalTime = userGameState.timeToSolveMs
+      } else if (userGameState.guesses.length > 0) {
+        if (didNotFinish && userStartTimeRef.current) {
+          // Still running - use time from start to now
+          totalTime = now - userStartTimeRef.current
+        } else {
+          // Use time from first to last guess
+          const firstGuess = userGameState.guesses[0]
+          const lastGuess = userGameState.guesses[userGameState.guesses.length - 1]
+          totalTime = lastGuess.tLast - firstGuess.tRequest
+        }
+      } else if (didNotFinish && userStartTimeRef.current) {
+        // Started but no guesses yet - use time from start to now
+        totalTime = now - userStartTimeRef.current
+      }
+
+      modelResults.push({
+        modelId: "user",
+        modelName: "You",
+        solved: userGameState.solved,
+        guessCount: userGameState.solved ? userGameState.solvedAtGuess! : userGameState.guesses.length,
+        timeToSolveMs: userGameState.solved ? totalTime : didNotFinish ? totalTime : undefined,
+        closenessScore,
+        correctLetters,
+        presentLetters,
+        totalTokens: totalTokens > 0 ? totalTokens : undefined,
+        totalCost: totalCost > 0 ? totalCost : undefined,
+        didNotFinish,
+        rank: 0, // Will be set after sorting
+      })
+    }
+
+    // Sort by: solved first, then by time, then by guess count
+    // For failed/didn't finish attempts: rank by closeness score (higher = closer)
+    modelResults.sort((a, b) => {
+      // Solved models rank higher
+      if (a.solved !== b.solved) {
+        return a.solved ? -1 : 1
+      }
+
+      // Among solved models, fewer guesses wins
+      if (a.solved && b.solved) {
+        if (a.guessCount !== b.guessCount) {
+          return a.guessCount - b.guessCount
+        }
+        // Same guess count, faster time wins
+        const timeA = a.timeToSolveMs || Infinity
+        const timeB = b.timeToSolveMs || Infinity
+        return timeA - timeB
+      }
+
+      // Both failed/didn't finish - rank by closeness score (higher = better), then by guess count
+      const closenessA = a.closenessScore ?? 0
+      const closenessB = b.closenessScore ?? 0
+      if (closenessA !== closenessB) {
+        return closenessB - closenessA // Higher closeness score ranks higher
+      }
+      // Same closeness, more guesses = better (they tried harder)
+      return b.guessCount - a.guessCount
+    })
+
+    // Assign ranks
+    modelResults.forEach((result, index) => {
+      result.rank = index + 1
+    })
+
+    const winner = modelResults.find((r) => r.solved && r.rank === 1)?.modelId
+
+    const finalResult: WordleRaceResult = {
+      gameId: config.id,
+      targetWord: finalTargetWord,
+      modelResults,
+      winner,
+    }
+
+    // Update state
+    setResult(finalResult)
+    setIsRunning(false)
+    setWorkingModels(new Set())
+    setState((prev) => ({
+      ...prev!,
+      status: "completed",
+      completedAt: now,
+    }))
+    
+    // Store target word for display
+    setTargetWord(finalTargetWord)
+  }, [config, state, targetWord, result, modelStates, workingModels, includeUser, userGameState])
+
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -332,6 +584,7 @@ export function useWordleStream(): UseWordleStreamResult {
     targetWord,
     submitUserGuess,
     startWordleRace,
+    endEarly,
     reset,
   }
 }

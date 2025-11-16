@@ -44,6 +44,7 @@ export default function HomePage() {
     error: wordleError,
     startWordleRace,
     reset: resetWordle,
+    endEarly: endWordleEarly,
     workingModels: wordleWorkingModels,
     includeUser: wordleIncludeUser,
     userGameState: wordleUserGameState,
@@ -317,7 +318,7 @@ export default function HomePage() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          resetWordle()
+                          endWordleEarly()
                         }}
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       >

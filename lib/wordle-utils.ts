@@ -88,3 +88,73 @@ export function extractWordleGuess(output: string): string | null {
   return null
 }
 
+/**
+ * Calculate closeness score from Wordle feedback
+ * Returns an object with correctCount, presentCount, and totalScore
+ * Higher score = closer to the solution
+ */
+export function calculateClosenessScore(feedback: WordleFeedback[]): {
+  correctCount: number
+  presentCount: number
+  totalScore: number
+} {
+  let correctCount = 0
+  let presentCount = 0
+
+  feedback.forEach((f) => {
+    if (f === "correct") {
+      correctCount++
+    } else if (f === "present") {
+      presentCount++
+    }
+  })
+
+  // Weight correct letters more heavily (3 points each) than present (1 point each)
+  // This ensures that having letters in the right position is more valuable
+  const totalScore = correctCount * 3 + presentCount
+
+  return {
+    correctCount,
+    presentCount,
+    totalScore,
+  }
+}
+
+/**
+ * Estimate cost per token for a model (rough approximation in USD per 1M tokens)
+ * These are approximate values and should be updated with actual pricing
+ */
+function getEstimatedCostPerMillionTokens(modelId: string): { input: number; output: number } {
+  // Rough cost estimates per 1M tokens (input/output)
+  // These are approximations and should be updated with actual pricing
+  const costMap: Record<string, { input: number; output: number }> = {
+    "gpt-5": { input: 2.5, output: 10 },
+    "gpt-5-mini": { input: 0.15, output: 0.6 },
+    "gpt-4.1-mini": { input: 0.15, output: 0.6 },
+    "gemini-2.5-flash": { input: 0.075, output: 0.3 },
+    "gemini-2.5-pro": { input: 1.25, output: 5 },
+    "claude-haiku-4.5": { input: 0.25, output: 1.25 },
+    "claude-sonnet-4.5": { input: 3, output: 15 },
+    "llama-3.3-70b": { input: 0.59, output: 0.79 }, // Groq pricing
+    "kimi-k2-0905": { input: 0.59, output: 0.79 }, // Groq pricing
+    "qwen3-32b": { input: 0.59, output: 0.79 }, // Groq pricing
+    "grok-4-fast": { input: 0.1, output: 0.1 },
+  }
+
+  return costMap[modelId] || { input: 1, output: 1 } // Default fallback
+}
+
+/**
+ * Calculate estimated cost in USD from token usage
+ */
+export function calculateEstimatedCost(
+  modelId: string,
+  promptTokens: number,
+  completionTokens: number,
+): number {
+  const costs = getEstimatedCostPerMillionTokens(modelId)
+  const inputCost = (promptTokens / 1_000_000) * costs.input
+  const outputCost = (completionTokens / 1_000_000) * costs.output
+  return inputCost + outputCost
+}
+

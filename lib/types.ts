@@ -129,6 +129,11 @@ export interface WordleGuess {
   e2eMs: number
   ttftMs?: number
   correct: boolean // true if this guess was correct
+  tokenUsage?: {
+    prompt: number
+    completion: number
+    total: number
+  }
 }
 
 export interface WordleGameState {
@@ -165,6 +170,12 @@ export interface WordleModelResult {
   guessCount: number // 1-6, or 6 if failed
   timeToSolveMs?: number // undefined if failed
   rank: number
+  closenessScore?: number // For failed attempts: how close they got (based on last guess)
+  correctLetters?: number // Number of correct letters in correct positions from last guess
+  presentLetters?: number // Number of correct letters in wrong positions from last guess
+  totalTokens?: number // Total tokens used across all guesses
+  totalCost?: number // Estimated cost in USD (if available)
+  didNotFinish?: boolean // true if race ended early and model was still running
 }
 
 export interface WordleRaceResult {

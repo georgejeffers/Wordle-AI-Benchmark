@@ -12,7 +12,7 @@ import type {
 } from "./types"
 import { runModelOnClue } from "./ai-runner"
 import { generateWordlePrompt } from "./prompts"
-import { computeWordleFeedback, extractWordleGuess } from "./wordle-utils"
+import { computeWordleFeedback, extractWordleGuess, calculateClosenessScore, calculateEstimatedCost } from "./wordle-utils"
 import { isValidWord } from "./wordle-words"
 
 export interface WordleCallbacks {
@@ -173,6 +173,7 @@ export class WordleEngine {
           e2eMs,
           ttftMs: result.attempt.ttftMs,
           correct,
+          tokenUsage: result.attempt.tokenUsage,
         }
 
         gameState.guesses.push(guess)
@@ -207,6 +208,7 @@ export class WordleEngine {
         e2eMs,
         ttftMs: result.attempt.ttftMs,
         correct,
+        tokenUsage: result.attempt.tokenUsage,
       }
 
       gameState.guesses.push(guess)
@@ -255,17 +257,55 @@ export class WordleEngine {
       const gameState = this.modelStates.get(model.id)!
       const totalTime = gameState.guesses.reduce((sum, g) => sum + g.e2eMs, 0)
 
+      // Calculate closeness for failed attempts
+      let closenessScore: number | undefined
+      let correctLetters: number | undefined
+      let presentLetters: number | undefined
+
+      if (!gameState.solved && gameState.guesses.length > 0) {
+        // Get the last guess to determine closeness
+        const lastGuess = gameState.guesses[gameState.guesses.length - 1]
+        const closeness = calculateClosenessScore(lastGuess.feedback)
+        closenessScore = closeness.totalScore
+        correctLetters = closeness.correctCount
+        presentLetters = closeness.presentCount
+      }
+
+      // Calculate total tokens and cost
+      let totalTokens = 0
+      let totalCost = 0
+      let totalPromptTokens = 0
+      let totalCompletionTokens = 0
+
+      gameState.guesses.forEach((guess) => {
+        if (guess.tokenUsage) {
+          totalTokens += guess.tokenUsage.total
+          totalPromptTokens += guess.tokenUsage.prompt
+          totalCompletionTokens += guess.tokenUsage.completion
+        }
+      })
+
+      if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
+        totalCost = calculateEstimatedCost(model.id, totalPromptTokens, totalCompletionTokens)
+      }
+
       results.push({
         modelId: model.id,
         modelName: model.name,
         solved: gameState.solved,
         guessCount: gameState.solved ? gameState.solvedAtGuess! : this.config.maxGuesses,
         timeToSolveMs: gameState.solved ? totalTime : undefined,
+        closenessScore,
+        correctLetters,
+        presentLetters,
+        totalTokens: totalTokens > 0 ? totalTokens : undefined,
+        totalCost: totalCost > 0 ? totalCost : undefined,
         rank: 0, // Will be set after sorting
       })
     })
 
     // Sort by: solved first, then by time, then by guess count
+    // For failed attempts: rank by closeness score (higher = closer)
     results.sort((a, b) => {
       // Solved models rank higher
       if (a.solved !== b.solved) {
@@ -284,7 +324,13 @@ export class WordleEngine {
         return a.guessCount - b.guessCount
       }
 
-      // Both failed - rank by guess count (more guesses = better)
+      // Both failed - rank by closeness score (higher = better), then by guess count
+      const closenessA = a.closenessScore ?? 0
+      const closenessB = b.closenessScore ?? 0
+      if (closenessA !== closenessB) {
+        return closenessB - closenessA // Higher closeness score ranks higher
+      }
+      // Same closeness, more guesses = better (they tried harder)
       return b.guessCount - a.guessCount
     })
 
