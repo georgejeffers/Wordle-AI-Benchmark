@@ -555,7 +555,6 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
             <div>
               <p className="text-foreground font-medium mb-1">Built by George Jefferson</p>
-              <p className="text-sm text-muted-foreground">Open source project exploring real-time AI benchmarking</p>
             </div>
             <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
               <a href="https://x.com/GeorgeJeffersn" target="_blank" rel="noopener noreferrer">
