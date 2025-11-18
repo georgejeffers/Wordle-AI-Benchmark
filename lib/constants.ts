@@ -33,6 +33,13 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     topP: 1,
   },
   {
+    id: "gpt-5.1",
+    name: "GPT-5.1",
+    modelString: "openai/gpt-5.1",
+    temperature: 0.1,
+    topP: 1,
+  },
+  {
     id: "gemini-2.5-flash",
     name: "Gemini 2.5 Flash",
     modelString: "google/gemini-2.5-flash",
@@ -63,6 +70,32 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     temperature: 0.1,
     topP: 1,
     enableThinking: true, // A/B test: with thinking
+  },
+  {
+    id: "gemini-3-pro-preview",
+    name: "Gemini 3 Pro Preview",
+    modelString: "google/gemini-3-pro-preview",
+    temperature: 0.1,
+    topP: 1,
+    enableThinking: false, // A/B test: no thinking
+  },
+  {
+    id: "gemini-3-pro-preview-thinking",
+    name: "Gemini 3 Pro Preview (Thinking)",
+    modelString: "google/gemini-3-pro-preview",
+    temperature: 0.1,
+    topP: 1,
+    enableThinking: true, // A/B test: with thinking
+    thinkingLevel: "medium", // Medium thinking level to prevent infinite loops
+  },
+  {
+    id: "gemini-3-pro-preview-thinking-low",
+    name: "Gemini 3 Pro Preview (Thinking Low)",
+    modelString: "google/gemini-3-pro-preview",
+    temperature: 0.1,
+    topP: 1,
+    enableThinking: true, // A/B test: with thinking
+    thinkingLevel: "low", // Low thinking level
   },
   {
     id: "claude-haiku-4.5",
@@ -209,10 +242,14 @@ export const MODEL_COLORS: Record<string, string> = {
   "o3-mini": "#ff8787", // lighter red (reasoning model)
   "gpt-5": "#10b981", // emerald
   "gpt-5-mini": "#06b6d4", // cyan
+  "gpt-5.1": "#059669", // darker emerald
   "gemini-2.5-flash": "#4285f4", // google blue
   "gemini-2.5-flash-thinking": "#5a96ff", // lighter google blue (with thinking)
   "gemini-2.5-pro": "#1a73e8", // darker google blue
   "gemini-2.5-pro-thinking": "#3d8bff", // lighter darker google blue (with thinking)
+  "gemini-3-pro-preview": "#0d47a1", // deep google blue
+  "gemini-3-pro-preview-thinking": "#1565c0", // medium google blue (with thinking)
+  "gemini-3-pro-preview-thinking-low": "#1976d2", // lighter google blue (with low thinking)
   "claude-haiku-4.5": "#a855f7", // purple
   "claude-sonnet-4.5": "#8b5cf6", // violet
   "claude-opus-4": "#9333ea", // darker purple
@@ -248,6 +285,9 @@ export const THINKING_CAPABLE_MODELS = new Set([
   "gemini-2.5-flash-thinking",
   "gemini-2.5-pro",
   "gemini-2.5-pro-thinking",
+  "gemini-3-pro-preview",
+  "gemini-3-pro-preview-thinking",
+  "gemini-3-pro-preview-thinking-low",
 ])
 
 // Models that support reasoning (Anthropic-style with thinking provider option)

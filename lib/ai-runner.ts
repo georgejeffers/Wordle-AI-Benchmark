@@ -435,15 +435,29 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
           }
           console.log(`[v0] Enabled detailed reasoning for ${model.id}`)
         } else if (providerName === "google" && THINKING_CAPABLE_MODELS.has(model.id)) {
+          const thinkingConfig: any = {
+            includeThoughts: true, // Include thoughts in response
+          }
+          
+          // For gemini-3-pro-preview, always use thinkingLevel (new API)
+          // For older models (2.5-flash, 2.5-pro), use thinkingBudget
+          const isGemini3Pro = model.modelString.includes("gemini-3-pro-preview")
+          
+          if (isGemini3Pro) {
+            // Gemini 3 Pro Preview uses thinkingLevel
+            thinkingConfig.thinkingLevel = model.thinkingLevel || "medium" // Default to medium if not specified
+            console.log(`[v0] Enabled thinking (level: ${thinkingConfig.thinkingLevel}) for ${model.id}`)
+          } else {
+            // Older Gemini models use thinkingBudget
+            thinkingConfig.thinkingBudget = 1024 // Low budget for Wordle (sufficient for simple reasoning)
+            console.log(`[v0] Enabled thinking (budget: 1024) for ${model.id}`)
+          }
+          
           streamTextOptions.providerOptions = {
             google: {
-              thinkingConfig: {
-                thinkingBudget: 1024, // Low budget for Wordle (sufficient for simple reasoning)
-                includeThoughts: true, // Include thoughts in response
-              },
+              thinkingConfig,
             },
           }
-          console.log(`[v0] Enabled thinking (budget: 1024) for ${model.id}`)
         } else if (providerName === "anthropic" && ANTHROPIC_REASONING_MODELS.has(model.id)) {
           streamTextOptions.providerOptions = {
             anthropic: {
