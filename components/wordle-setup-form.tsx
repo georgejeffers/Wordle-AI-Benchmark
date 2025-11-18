@@ -77,8 +77,10 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
     
     // Add all selected base models (they'll use default prompts)
     selectedModels.forEach((modelId) => {
-      const defaultModel = DEFAULT_MODELS.find((m) => m.id === modelId)!
-      modelConfigs.push({ ...defaultModel })
+      const defaultModel = DEFAULT_MODELS.find((m) => m.id === modelId)
+      if (defaultModel) {
+        modelConfigs.push({ ...defaultModel })
+      }
     })
     
     // Add custom entries as separate model configs with unique IDs

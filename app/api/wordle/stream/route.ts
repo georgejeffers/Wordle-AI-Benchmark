@@ -50,7 +50,9 @@ export async function POST(request: NextRequest) {
         .filter((m): m is ModelConfig => m !== undefined)
     } else {
       // New format: ModelConfig[]
-      models = body.models as ModelConfig[]
+      models = (body.models as ModelConfig[]).filter(
+        (m) => m && m.id && (m.name || m.id) // Filter out invalid models
+      )
     }
   } else {
     // Default: use all models

@@ -33,7 +33,7 @@ export function RaceLane({
       {/* Model info */}
       <div className="flex-shrink-0 w-32">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-sm text-foreground">{model.name}</h3>
+          <h3 className="font-semibold text-sm text-foreground">{model.name || model.id}</h3>
           {isWorkingOnCurrentClue && <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />}
         </div>
         <p className="text-xs text-muted-foreground">

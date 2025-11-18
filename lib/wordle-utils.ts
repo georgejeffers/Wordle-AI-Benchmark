@@ -130,6 +130,11 @@ function getEstimatedCostPerMillionTokens(modelId: string): { input: number; out
   const costMap: Record<string, { input: number; output: number }> = {
     "gpt-5": { input: 2.5, output: 10 },
     "gpt-5-mini": { input: 0.15, output: 0.6 },
+    "gpt-5.1": { input: 2.5, output: 10 },
+    "gpt-5.1-high": { input: 2.5, output: 10 },
+    "gpt-5.1-medium": { input: 2.5, output: 10 },
+    "gpt-5.1-low": { input: 2.5, output: 10 },
+    "gpt-5.1-none": { input: 2.5, output: 10 },
     "gpt-4.1-mini": { input: 0.15, output: 0.6 },
     "gemini-2.5-flash": { input: 0.075, output: 0.3 },
     "gemini-2.5-pro": { input: 1.25, output: 5 },

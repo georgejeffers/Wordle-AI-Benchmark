@@ -124,6 +124,7 @@ export function useWordleStream(): UseWordleStreamResult {
 
         const reader = response.body?.getReader()
         const decoder = new TextDecoder()
+        let buffer = ""
 
         if (!reader) {
           throw new Error("No response body")
@@ -131,14 +132,28 @@ export function useWordleStream(): UseWordleStreamResult {
 
         while (true) {
           const { done, value } = await reader.read()
-          if (done) break
+          
+          if (value) {
+            const chunk = decoder.decode(value, { stream: !done })
+            buffer += chunk
+          }
 
-          const chunk = decoder.decode(value)
-          const lines = chunk.split("\n")
+          // Process complete lines (ending with \n)
+          const lines = buffer.split("\n")
+          // Keep the last incomplete line in buffer (or process it if done)
+          if (done) {
+            // Process all remaining lines including the last one
+            buffer = ""
+          } else {
+            buffer = lines.pop() || ""
+          }
 
           for (const line of lines) {
             if (line.startsWith("data: ")) {
-              const data = line.slice(6)
+              const data = line.slice(6).trim()
+              // Skip empty data strings
+              if (!data) continue
+              
               try {
                 const event: StreamEvent = JSON.parse(data)
 
@@ -171,6 +186,16 @@ export function useWordleStream(): UseWordleStreamResult {
                   case "modelStart":
                     if (event.modelId) {
                       setWorkingModels((prev) => new Set(prev).add(event.modelId!))
+                      // Don't clear thinking - preserve it as history for previous guesses
+                      // The reasoning-delta will append to existing thinking for the new guess
+                      // Ensure thinking exists in the map (even if empty) to preserve history
+                      setCurrentGuessThinking((prev) => {
+                        const next = new Map(prev)
+                        if (!next.has(event.modelId!)) {
+                          next.set(event.modelId!, "")
+                        }
+                        return next
+                      })
                     }
                     break
                   case "reasoning-delta":
@@ -178,6 +203,7 @@ export function useWordleStream(): UseWordleStreamResult {
                       setCurrentGuessThinking((prev) => {
                         const next = new Map(prev)
                         const current = next.get(event.modelId!) || ""
+                        // Always append delta to preserve all thinking history
                         next.set(event.modelId!, current + event.delta)
                         return next
                       })
@@ -242,7 +268,9 @@ export function useWordleStream(): UseWordleStreamResult {
                           const existing = next.get(event.guess!.modelId) || ""
                           const guessWord = event.guess!.word ? event.guess!.word.toUpperCase() : ""
                           const marker = guessWord ? `{GUESSED WORD: ${guessWord}}` : "{GUESSED WORD}"
-                          const separator = existing.length > 0 ? "\n\n" : ""
+                          // Only add separator if there's existing content (preserve all thinking history)
+                          const separator = existing.length > 0 && !existing.trim().endsWith(marker.trim()) ? "\n\n" : ""
+                          // Always preserve existing thinking and append marker
                           next.set(event.guess!.modelId, `${existing}${separator}${marker}\n`)
                           return next
                         })
@@ -284,9 +312,12 @@ export function useWordleStream(): UseWordleStreamResult {
                 }
               } catch (err) {
                 console.error("[wordle] Failed to parse SSE event:", err)
+                console.error("[wordle] Data that failed to parse:", data.substring(0, 200))
               }
             }
           }
+          
+          if (done) break
         }
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
@@ -470,7 +501,7 @@ export function useWordleStream(): UseWordleStreamResult {
 
       modelResults.push({
         modelId: model.id,
-        modelName: model.name,
+        modelName: model.name || model.id,
         solved: gameState.solved,
         guessCount: gameState.solved ? gameState.solvedAtGuess! : gameState.guesses.length,
         timeToSolveMs: gameState.solved ? totalTime : didNotFinish ? totalTime : undefined,

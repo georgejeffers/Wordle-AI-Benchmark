@@ -428,10 +428,18 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
       // Add providerOptions for reasoning/thinking models
       if (isThinkingEnabled) {
         if (providerName === "openai" && isReasoningModel) {
+          const openaiOptions: any = {
+            reasoningSummary: 'detailed', // Get comprehensive reasoning
+          }
+          
+          // For GPT-5.1 models, set reasoningEffort if specified
+          if (model.modelString.includes("gpt-5.1") && model.reasoningEffort) {
+            openaiOptions.reasoningEffort = model.reasoningEffort
+            console.log(`[v0] Set reasoningEffort to ${model.reasoningEffort} for ${model.id}`)
+          }
+          
           streamTextOptions.providerOptions = {
-            openai: {
-              reasoningSummary: 'detailed', // Get comprehensive reasoning
-            },
+            openai: openaiOptions,
           }
           console.log(`[v0] Enabled detailed reasoning for ${model.id}`)
         } else if (providerName === "google" && THINKING_CAPABLE_MODELS.has(model.id)) {
@@ -582,13 +590,10 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
           
           try {
             for await (const chunk of result.fullStream) {
-              console.log(`[v0] fullStream chunk type: ${chunk.type}`)
-
               // Handle reasoning chunks (type: 'reasoning', has 'text' property)
               if (chunk.type === "reasoning") {
                 const delta = (chunk as any).text || ""
                 reasoningText += delta
-                console.log(`[v0] Reasoning chunk (${delta.length} chars, total: ${reasoningText.length}): "${delta.substring(0, 50)}..."`)
                 // Send reasoning as progress
                 if (onModelProgress && reasoningText) {
                   onModelProgress(model.id, clue.id, reasoningText)
@@ -596,29 +601,11 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
               }
               // Also handle reasoning-delta for backwards compatibility
               else if (chunk.type === "reasoning-delta") {
-                // Debug: log chunk properties to see what's available
                 const chunkAny = chunk as any
-                const chunkKeys = Object.keys(chunkAny)
                 // Try all possible property names for reasoning content
                 const delta = chunkAny.text || chunkAny.textDelta || chunkAny.delta || chunkAny.content || chunkAny.reasoning || ""
                 
-                // Debug: log the actual chunk structure for first few deltas
-                if (reasoningText.length < 100) {
-                  console.log(`[v0] DEBUG reasoning-delta chunk:`, JSON.stringify({
-                    type: chunkAny.type,
-                    keys: chunkKeys,
-                    text: chunkAny.text,
-                    textDelta: chunkAny.textDelta,
-                    delta: chunkAny.delta,
-                    content: chunkAny.content,
-                    reasoning: chunkAny.reasoning,
-                    extractedDelta: delta,
-                    deltaLength: delta.length
-                  }, null, 2))
-                }
-                
                 reasoningText += delta
-                console.log(`[v0] Reasoning delta (${delta.length} chars, total: ${reasoningText.length}, chunk keys: ${chunkKeys.join(', ')}): "${delta.substring(0, 100).replace(/\n/g, '\\n').replace(/\r/g, '\\r')}..."`)
                 // Send reasoning as progress
                 if (onModelProgress && reasoningText) {
                   onModelProgress(model.id, clue.id, reasoningText)
@@ -632,13 +619,9 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
                 const delta = (chunk as any).textDelta || ""
                 accumulatedText.push(delta)
                 text += delta
-                console.log(`[v0] Text delta: "${delta}"`)
               }
             }
-            console.log(`[v0] fullStream complete. Text: "${text}", Reasoning: ${reasoningText.length} chars`)
-            if (reasoningText.length > 0) {
-              console.log(`[v0] Reasoning preview (first 200 chars): "${reasoningText.substring(0, 200).replace(/\n/g, '\\n')}"`)
-            }
+            console.log(`[v0] fullStream complete for ${model.id}. Text: "${text}", Reasoning: ${reasoningText.length} chars`)
           } catch (fullStreamError) {
             console.warn(`[v0] fullStream error for ${model.id}:`, fullStreamError)
             // If we accumulated some text, use it
@@ -905,3 +888,4 @@ export async function runRound(
 
   return allAttempts
 }
+

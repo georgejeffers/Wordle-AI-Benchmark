@@ -349,26 +349,28 @@ export default function HomePage() {
                 )}
                 
                 {/* AI model lanes */}
-                {wordleConfig.models.map((model) => {
-                  const gameState = wordleModelStates.get(model.id) || {
-                    modelId: model.id,
-                    guesses: [],
-                    solved: false,
-                    failed: false,
-                  }
-                  return (
-                    <WordleRaceLane
-                      key={model.id}
-                      model={model}
-                      gameState={gameState}
-                      isRunning={isWordleRunning}
-                      isModelWorking={wordleWorkingModels.has(model.id)}
-                      blurred={wordleIncludeUser && blurAI && wordleState?.status === "running" && (!wordleUserGameState?.solved && !wordleUserGameState?.failed)}
-                      currentGuessThinking={wordleCurrentGuessThinking.get(model.id) || ""}
-                      gameStartedAt={wordleState.startedAt}
-                    />
-                  )
-                })}
+                {wordleConfig.models
+                  .filter((model) => model && model.id && (model.name || model.id)) // Filter out invalid models
+                  .map((model) => {
+                    const gameState = wordleModelStates.get(model.id) || {
+                      modelId: model.id,
+                      guesses: [],
+                      solved: false,
+                      failed: false,
+                    }
+                    return (
+                      <WordleRaceLane
+                        key={model.id}
+                        model={model}
+                        gameState={gameState}
+                        isRunning={isWordleRunning}
+                        isModelWorking={wordleWorkingModels.has(model.id)}
+                        blurred={wordleIncludeUser && blurAI && wordleState?.status === "running" && (!wordleUserGameState?.solved && !wordleUserGameState?.failed)}
+                        currentGuessThinking={wordleCurrentGuessThinking.get(model.id) || ""}
+                        gameStartedAt={wordleState.startedAt}
+                      />
+                    )
+                  })}
               </div>
               
               {/* Show/Hide AI button overlay - appears over blurred area */}

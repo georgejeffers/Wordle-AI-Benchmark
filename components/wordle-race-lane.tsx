@@ -44,44 +44,28 @@ export function WordleRaceLane({ model, gameState, isRunning, isModelWorking, bl
       const minTimestamp = 1577836800000 // Jan 1, 2020
       const maxTimestamp = 4102444800000 // Jan 1, 2100
       
-      // Debug: log timer info for first few seconds
-      const debugLog = !currentGameState.solved && !currentGameState.failed && currentGameState.guesses.length <= 1
-      if (debugLog) {
-        console.log(`[${model.id}] Timer update:`, {
-          gameStartedAt: currentGameStartedAt,
-          guessCount: currentGameState.guesses.length,
-          solved: currentGameState.solved,
-          failed: currentGameState.failed,
-        })
-      }
-      
-      // If solved, use the final time and freeze
-      if (currentGameState.solved) {
-        const finalTime = currentGameState.timeToSolveMs !== undefined && currentGameState.timeToSolveMs > 0
-          ? currentGameState.timeToSolveMs
-          : currentGameState.guesses.reduce((sum, g) => sum + g.e2eMs, 0)
-        setLiveTime(finalTime)
-        return
-      }
-      
-      // If failed, calculate total time and freeze
-      if (currentGameState.failed) {
+      // If solved or failed, freeze at the total time from game start to completion
+      if (currentGameState.solved || currentGameState.failed) {
         if (currentGameState.guesses.length > 0 && currentGameStartedAt && 
             currentGameStartedAt > minTimestamp && currentGameStartedAt < maxTimestamp) {
           const lastGuess = currentGameState.guesses[currentGameState.guesses.length - 1]
           if (lastGuess.tLast > minTimestamp && lastGuess.tLast < maxTimestamp) {
-            // Time from game start to last guess completion
-            setLiveTime(lastGuess.tLast - currentGameStartedAt)
-          } else {
-            setLiveTime(currentGameState.guesses.reduce((sum, g) => sum + g.e2eMs, 0))
+            // Time from game start to last guess completion - this is the total elapsed time
+            const totalTime = lastGuess.tLast - currentGameStartedAt
+            setLiveTime(Math.max(0, totalTime))
+            return
           }
-        } else {
+        }
+        // Fallback: if we can't calculate from timestamps, use sum of e2eMs (less accurate but better than nothing)
+        if (currentGameState.guesses.length > 0) {
           setLiveTime(currentGameState.guesses.reduce((sum, g) => sum + g.e2eMs, 0))
+        } else {
+          setLiveTime(0)
         }
         return
       }
       
-      // Game is active - stopwatch counts up continuously
+      // Game is active - stopwatch counts up continuously from gameStartedAt
       // Use gameStartedAt as the single source of truth
       if (currentGameStartedAt && currentGameStartedAt > minTimestamp && currentGameStartedAt < maxTimestamp) {
         const now = Date.now()
@@ -137,7 +121,7 @@ export function WordleRaceLane({ model, gameState, isRunning, isModelWorking, bl
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-              <span className="font-semibold text-foreground">{model.name}</span>
+              <span className="font-semibold text-foreground">{model.name || model.id}</span>
             </div>
             <div className="flex items-center gap-2">
               {isModelWorking && <Loader2 className="w-4 h-4 animate-spin text-primary" />}

@@ -34,6 +34,7 @@ export interface ModelConfig {
   baseModelId?: string // For custom entries: the original model ID for cost calculation
   enableThinking?: boolean // Enable reasoning/thinking for capable models (optional, defaults based on model)
   thinkingLevel?: "low" | "medium" | "high" // For Google models: thinking level (optional, defaults to high/not specified)
+  reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high" // For OpenAI GPT-5.1 models: reasoning effort (optional, defaults to medium)
 }
 
 export interface CustomEntry {

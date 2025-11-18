@@ -336,7 +336,7 @@ export class WordleEngine {
 
       results.push({
         modelId: model.id,
-        modelName: model.name,
+        modelName: model.name || model.id,
         solved: gameState.solved,
         guessCount: gameState.solved ? gameState.solvedAtGuess! : this.config.maxGuesses,
         timeToSolveMs: gameState.solved ? totalTime : undefined,

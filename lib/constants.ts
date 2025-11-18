@@ -38,6 +38,44 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     modelString: "openai/gpt-5.1",
     temperature: 0.1,
     topP: 1,
+    enableThinking: true,
+    reasoningEffort: "medium", // Default reasoning effort
+  },
+  {
+    id: "gpt-5.1-high",
+    name: "GPT-5.1 (High Reasoning)",
+    modelString: "openai/gpt-5.1",
+    temperature: 0.1,
+    topP: 1,
+    enableThinking: true,
+    reasoningEffort: "high",
+  },
+  {
+    id: "gpt-5.1-medium",
+    name: "GPT-5.1 (Medium Reasoning)",
+    modelString: "openai/gpt-5.1",
+    temperature: 0.1,
+    topP: 1,
+    enableThinking: true,
+    reasoningEffort: "medium",
+  },
+  {
+    id: "gpt-5.1-low",
+    name: "GPT-5.1 (Low Reasoning)",
+    modelString: "openai/gpt-5.1",
+    temperature: 0.1,
+    topP: 1,
+    enableThinking: true,
+    reasoningEffort: "low",
+  },
+  {
+    id: "gpt-5.1-none",
+    name: "GPT-5.1 (No Reasoning)",
+    modelString: "openai/gpt-5.1",
+    temperature: 0.1,
+    topP: 1,
+    enableThinking: true,
+    reasoningEffort: "none",
   },
   {
     id: "gemini-2.5-flash",
@@ -243,6 +281,10 @@ export const MODEL_COLORS: Record<string, string> = {
   "gpt-5": "#10b981", // emerald
   "gpt-5-mini": "#06b6d4", // cyan
   "gpt-5.1": "#059669", // darker emerald
+  "gpt-5.1-high": "#047857", // darkest emerald (high reasoning)
+  "gpt-5.1-medium": "#059669", // darker emerald (medium reasoning)
+  "gpt-5.1-low": "#10b981", // emerald (low reasoning)
+  "gpt-5.1-none": "#34d399", // lighter emerald (no reasoning)
   "gemini-2.5-flash": "#4285f4", // google blue
   "gemini-2.5-flash-thinking": "#5a96ff", // lighter google blue (with thinking)
   "gemini-2.5-pro": "#1a73e8", // darker google blue
@@ -277,6 +319,11 @@ export const REASONING_MODELS = new Set([
   "o1-mini",
   "o3-mini",
   "gpt-5", // If GPT-5 supports reasoning
+  "gpt-5.1", // GPT-5.1 with reasoning
+  "gpt-5.1-high", // GPT-5.1 with high reasoning effort
+  "gpt-5.1-medium", // GPT-5.1 with medium reasoning effort
+  "gpt-5.1-low", // GPT-5.1 with low reasoning effort
+  "gpt-5.1-none", // GPT-5.1 with no reasoning effort
 ])
 
 // Models that support thinking (Google-style with thinkingConfig)
