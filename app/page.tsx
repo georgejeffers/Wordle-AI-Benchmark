@@ -50,6 +50,7 @@ export default function HomePage() {
     userGameState: wordleUserGameState,
     targetWord: wordleTargetWord,
     submitUserGuess: wordleSubmitUserGuess,
+    currentGuessThinking: wordleCurrentGuessThinking,
   } = wordleStream
   
   const [examples, setExamples] = useState<any[]>([])
@@ -363,6 +364,8 @@ export default function HomePage() {
                       isRunning={isWordleRunning}
                       isModelWorking={wordleWorkingModels.has(model.id)}
                       blurred={wordleIncludeUser && blurAI && wordleState?.status === "running" && (!wordleUserGameState?.solved && !wordleUserGameState?.failed)}
+                      currentGuessThinking={wordleCurrentGuessThinking.get(model.id) || ""}
+                      gameStartedAt={wordleState.startedAt}
                     />
                   )
                 })}

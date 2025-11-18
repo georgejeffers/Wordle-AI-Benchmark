@@ -59,6 +59,7 @@ export function generateWordlePrompt(
       
       if (!hasPreviousGuesses) {
         prompt += "\n\nPrevious guesses and feedback:\n"
+        const previousWords = new Set<string>()
         previousGuesses.forEach((guess, index) => {
           const feedbackStr = guess.feedback
             .map((f) => {
@@ -68,14 +69,16 @@ export function generateWordlePrompt(
             })
             .join("")
           prompt += `Guess ${index + 1}: ${guess.word.toUpperCase()} ${feedbackStr}\n`
+          previousWords.add(guess.word.toLowerCase())
         })
-        prompt += "\n"
+        prompt += `\nIMPORTANT: Do NOT repeat any previous guesses. Do NOT guess: ${Array.from(previousWords).map(w => w.toUpperCase()).join(", ")}\n\n`
       } else {
         // Template already has previous guesses section, inject them
         // Replace placeholder patterns if they exist
         const guessPlaceholder = /{{PREVIOUS_GUESSES}}/i
         if (guessPlaceholder.test(prompt)) {
           let guessesText = ""
+          const previousWords = new Set<string>()
           previousGuesses.forEach((guess, index) => {
             const feedbackStr = guess.feedback
               .map((f) => {
@@ -85,11 +88,14 @@ export function generateWordlePrompt(
               })
               .join("")
             guessesText += `Guess ${index + 1}: ${guess.word.toUpperCase()} ${feedbackStr}\n`
+            previousWords.add(guess.word.toLowerCase())
           })
+          guessesText += `\nIMPORTANT: Do NOT repeat any previous guesses. Do NOT guess: ${Array.from(previousWords).map(w => w.toUpperCase()).join(", ")}\n`
           prompt = prompt.replace(guessPlaceholder, guessesText)
         } else {
           // Append at the end if no placeholder
           prompt += "\n\nPrevious guesses:\n"
+          const previousWords = new Set<string>()
           previousGuesses.forEach((guess, index) => {
             const feedbackStr = guess.feedback
               .map((f) => {
@@ -99,7 +105,9 @@ export function generateWordlePrompt(
               })
               .join("")
             prompt += `Guess ${index + 1}: ${guess.word.toUpperCase()} ${feedbackStr}\n`
+            previousWords.add(guess.word.toLowerCase())
           })
+          prompt += `\nIMPORTANT: Do NOT repeat any previous guesses. Do NOT guess: ${Array.from(previousWords).map(w => w.toUpperCase()).join(", ")}\n\n`
         }
       }
     }
@@ -116,6 +124,7 @@ Rules:
   * Green (correct): letter is in the word and in the correct position
   * Yellow (present): letter is in the word but in a different position
   * Gray (absent): letter is not in the word at all
+- IMPORTANT: Do NOT repeat any previous guesses. Each guess must be a different word.
 - Output ONLY a single 5-letter lowercase word, nothing else
 - No punctuation, no explanation, just the word
 
@@ -123,6 +132,7 @@ Rules:
 
   if (previousGuesses.length > 0) {
     prompt += "Previous guesses and feedback:\n"
+    const previousWords = new Set<string>()
     previousGuesses.forEach((guess, index) => {
       const feedbackStr = guess.feedback
         .map((f) => {
@@ -132,11 +142,12 @@ Rules:
         })
         .join("")
       prompt += `Guess ${index + 1}: ${guess.word.toUpperCase()} ${feedbackStr}\n`
+      previousWords.add(guess.word.toLowerCase())
     })
-    prompt += "\n"
+    prompt += `\nDo NOT guess any of these words again: ${Array.from(previousWords).map(w => w.toUpperCase()).join(", ")}\n\n`
   }
 
-  prompt += "Your next guess (output only the 5-letter word):"
+  prompt += "Your next guess (output only the 5-letter word, must be different from all previous guesses):"
 
   return prompt
 }

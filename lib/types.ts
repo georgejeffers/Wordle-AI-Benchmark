@@ -32,6 +32,7 @@ export interface ModelConfig {
   topP?: number // default 1
   customPrompt?: string // Custom prompt override for Wordle (optional)
   baseModelId?: string // For custom entries: the original model ID for cost calculation
+  enableThinking?: boolean // Enable reasoning/thinking for capable models (optional, defaults based on model)
 }
 
 export interface CustomEntry {

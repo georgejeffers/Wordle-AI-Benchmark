@@ -11,13 +11,15 @@ import type {
   ModelConfig,
 } from "@/lib/types"
 import { computeWordleFeedback, calculateClosenessScore, calculateEstimatedCost } from "@/lib/wordle-utils"
+import { REASONING_MODELS } from "@/lib/constants"
 
 interface StreamEvent {
-  type: "config" | "state" | "modelStart" | "guess" | "modelComplete" | "complete" | "error"
+  type: "config" | "state" | "modelStart" | "reasoning-delta" | "guess" | "modelComplete" | "complete" | "error"
   config?: Omit<WordleConfig, "targetWord"> & { targetWord?: string } // Config may include target word if user is participating
   state?: WordleState & { modelStates?: Record<string, WordleGameState> }
   modelId?: string
   guessIndex?: number
+  delta?: string // Reasoning delta text
   guess?: WordleGuess
   gameState?: WordleGameState
   result?: WordleRaceResult
@@ -35,6 +37,7 @@ interface UseWordleStreamResult {
   includeUser: boolean
   userGameState: WordleGameState | null
   targetWord: string | null
+  currentGuessThinking: Map<string, string> // modelId -> reasoning text for current guess
   submitUserGuess: (word: string) => void
   startWordleRace: (name: string, models?: ModelConfig[], targetWord?: string, includeUser?: boolean) => Promise<void>
   endEarly: () => void
@@ -55,8 +58,10 @@ export function useWordleStream(): UseWordleStreamResult {
   const [includeUser, setIncludeUser] = useState(false)
   const [userGameState, setUserGameState] = useState<WordleGameState | null>(null)
   const [targetWord, setTargetWord] = useState<string | null>(null)
+  const [currentGuessThinking, setCurrentGuessThinking] = useState<Map<string, string>>(new Map())
   const userStartTimeRef = useRef<number | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const modelConfigRef = useRef<Map<string, ModelConfig>>(new Map())
 
   const reset = useCallback(() => {
     setConfig(null)
@@ -66,15 +71,17 @@ export function useWordleStream(): UseWordleStreamResult {
     setIsRunning(false)
     setError(null)
     setWorkingModels(new Set())
-      setIncludeUser(false)
-      setUserGameState(null)
-      setTargetWord(null)
-      userStartTimeRef.current = null
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-        abortControllerRef.current = null
-      }
-    }, [])
+    setIncludeUser(false)
+    setUserGameState(null)
+    setTargetWord(null)
+    setCurrentGuessThinking(new Map())
+    modelConfigRef.current = new Map()
+    userStartTimeRef.current = null
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+  }, [])
 
   const startWordleRace = useCallback(
     async (name: string, models?: ModelConfig[], targetWordParam?: string, includeUserParam?: boolean) => {
@@ -139,6 +146,9 @@ export function useWordleStream(): UseWordleStreamResult {
                   case "config":
                     if (event.config) {
                       setConfig(event.config)
+                      if (event.config.models) {
+                        modelConfigRef.current = new Map(event.config.models.map((m) => [m.id, m]))
+                      }
                       // Store target word if provided (when user is participating)
                       if (event.config.targetWord) {
                         setTargetWord(event.config.targetWord)
@@ -161,6 +171,16 @@ export function useWordleStream(): UseWordleStreamResult {
                   case "modelStart":
                     if (event.modelId) {
                       setWorkingModels((prev) => new Set(prev).add(event.modelId!))
+                    }
+                    break
+                  case "reasoning-delta":
+                    if (event.modelId && event.delta !== undefined) {
+                      setCurrentGuessThinking((prev) => {
+                        const next = new Map(prev)
+                        const current = next.get(event.modelId!) || ""
+                        next.set(event.modelId!, current + event.delta)
+                        return next
+                      })
                     }
                     break
                   case "guess":
@@ -201,6 +221,32 @@ export function useWordleStream(): UseWordleStreamResult {
                         next.set(event.guess!.modelId, gameState)
                         return next
                       })
+
+                      // Append guessed word marker for thinking-capable models so history stays visible
+                      const modelConfig = modelConfigRef.current.get(event.guess!.modelId)
+                      const baseModelId = modelConfig?.baseModelId || modelConfig?.id || event.guess!.modelId
+                      // Only show thinking if:
+                      // 1. enableThinking is explicitly true, OR
+                      // 2. enableThinking is undefined and it's a reasoning model (which always has thinking)
+                      // Do NOT show thinking if enableThinking is explicitly false
+                      const modelSupportsThinking =
+                        !!modelConfig &&
+                        (
+                          modelConfig.enableThinking === true ||
+                          (modelConfig.enableThinking !== false && REASONING_MODELS.has(baseModelId))
+                        )
+
+                      if (modelSupportsThinking) {
+                        setCurrentGuessThinking((prev) => {
+                          const next = new Map(prev)
+                          const existing = next.get(event.guess!.modelId) || ""
+                          const guessWord = event.guess!.word ? event.guess!.word.toUpperCase() : ""
+                          const marker = guessWord ? `{GUESSED WORD: ${guessWord}}` : "{GUESSED WORD}"
+                          const separator = existing.length > 0 ? "\n\n" : ""
+                          next.set(event.guess!.modelId, `${existing}${separator}${marker}\n`)
+                          return next
+                        })
+                      }
                     }
                     break
                   case "modelComplete":
@@ -584,10 +630,10 @@ export function useWordleStream(): UseWordleStreamResult {
     includeUser,
     userGameState,
     targetWord,
+    currentGuessThinking,
     submitUserGuess,
     startWordleRace,
     endEarly,
     reset,
   }
 }
-

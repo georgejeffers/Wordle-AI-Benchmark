@@ -18,6 +18,7 @@ import { isValidWord } from "./wordle-words"
 export interface WordleCallbacks {
   onStateChange?: (state: WordleState) => void
   onModelStart?: (modelId: string, guessIndex: number) => void
+  onModelProgress?: (modelId: string, guessIndex: number, reasoning: string) => void
   onGuessComplete?: (guess: WordleGuess) => void
   onModelComplete?: (modelId: string, gameState: WordleGameState) => void
   onRaceComplete?: (result: WordleRaceResult) => void
@@ -139,6 +140,14 @@ export class WordleEngine {
         mode: "plain",
         maxTokens: 10, // Wordle guesses should be short
         timeoutMs: 10000, // 10 second timeout per guess
+        onModelProgress: this.callbacks.onModelProgress
+          ? (modelId: string, clueId: string, reasoning: string) => {
+              // Convert clueId to guessIndex (clueId format: "wordle-guess-N")
+              const match = clueId.match(/wordle-guess-(\d+)/)
+              const extractedGuessIndex = match ? parseInt(match[1], 10) : guessIndex
+              this.callbacks.onModelProgress!(modelId, extractedGuessIndex, reasoning)
+            }
+          : undefined,
       })
 
       // Use timing from the attempt result
@@ -147,22 +156,52 @@ export class WordleEngine {
       const e2eMs = result.attempt.e2eMs
 
       // Extract the guessed word
-      const guessedWord = extractWordleGuess(result.attempt.output) || result.attempt.normalized || ""
+      let guessedWord = extractWordleGuess(result.attempt.output) || result.attempt.normalized || ""
 
-      // Validate guess
+      // Normalize to lowercase for comparison
+      guessedWord = guessedWord.toLowerCase().trim()
+
+      // Check if this word has already been guessed
+      const previousWords = new Set(previousGuesses.map(g => g.word.toLowerCase()))
+      const isDuplicate = previousWords.has(guessedWord)
+      
+      if (isDuplicate) {
+        console.warn(`[wordle] Model ${model.id} repeated previous guess: "${guessedWord}". Previous guesses: ${Array.from(previousWords).join(", ")}`)
+        // Mark this as an invalid guess - we'll treat it as if the model failed to produce a valid guess
+        guessedWord = ""
+      }
+
+      // Validate guess format
       let validGuess = guessedWord.length === 5 && /^[a-z]{5}$/.test(guessedWord)
       if (!validGuess && guessedWord) {
         // Try to clean it up
         const cleaned = guessedWord.toLowerCase().trim().slice(0, 5)
         if (cleaned.length === 5 && /^[a-z]{5}$/.test(cleaned)) {
-          validGuess = true
+          // But check again if it's a duplicate after cleaning
+          if (!previousWords.has(cleaned)) {
+            validGuess = true
+            guessedWord = cleaned
+          }
         }
       }
 
       if (!validGuess || guessedWord.length !== 5) {
         console.warn(`[wordle] Model ${model.id} produced invalid guess: "${result.attempt.output}"`)
-        // Use a fallback - just take first 5 letters or pad
-        const fallback = guessedWord.slice(0, 5).padEnd(5, "a")
+        // Use a fallback - generate a word that hasn't been guessed yet
+        // Try common Wordle starter words that haven't been used
+        const commonWords = ["crane", "slate", "adieu", "audio", "house", "mouse", "pound", "round", "sound", "found"]
+        let fallback = commonWords.find(w => !previousWords.has(w)) || guessedWord.slice(0, 5).padEnd(5, "a")
+        
+        // If fallback is still a duplicate, try to modify it
+        let attempts = 0
+        while (previousWords.has(fallback) && attempts < 10) {
+          // Try appending a different letter
+          const lastChar = fallback[fallback.length - 1]
+          const nextChar = String.fromCharCode(((lastChar.charCodeAt(0) - 97 + 1) % 26) + 97)
+          fallback = fallback.slice(0, 4) + nextChar
+          attempts++
+        }
+        
         const feedback = computeWordleFeedback(fallback, this.config.targetWord)
         const correct = fallback === this.config.targetWord.toLowerCase()
 

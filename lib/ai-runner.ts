@@ -3,6 +3,7 @@
 import type { ModelConfig, Clue, ClueAttempt } from "./types"
 import { generatePrompt } from "./prompts"
 import { normalizeAnswer, validateFormat, checkCorrectness } from "./scoring"
+import { REASONING_MODELS, THINKING_CAPABLE_MODELS, ANTHROPIC_REASONING_MODELS, GROQ_REASONING_MODELS } from "./constants"
 
 export interface RunClueParams {
   raceId: string
@@ -21,7 +22,7 @@ export interface RunClueResult {
   error?: string
 }
 
-async function getProviderAndModel(modelString: string) {
+async function getProviderAndModel(modelString: string, modelId: string) {
   const parts = modelString.split("/")
   const providerName = parts[0]
   const modelName = parts.slice(1).join("/")
@@ -30,6 +31,13 @@ async function getProviderAndModel(modelString: string) {
   if (providerName === "openai") {
     const [{ createOpenAI }, { streamText }] = await Promise.all([import("@ai-sdk/openai"), import("ai")])
     const openai = createOpenAI()
+    
+    // For reasoning models like gpt-5, o1, o3-mini, use .responses() instead of direct call
+    if (REASONING_MODELS.has(modelId)) {
+      console.log(`[v0] Using openai.responses() for reasoning model ${modelId}`)
+      return { streamText, model: openai.responses(modelName) }
+    }
+    
     return { streamText, model: openai(modelName) }
   } else if (providerName === "anthropic") {
     const [{ createAnthropic }, { streamText }] = await Promise.all([import("@ai-sdk/anthropic"), import("ai")])
@@ -377,7 +385,7 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
       timeoutId = setTimeout(() => reject(new Error("Timeout")), timeoutMs)
     })
 
-    const { streamText: streamTextFn, model: modelInstance } = await getProviderAndModel(model.modelString)
+    const { streamText: streamTextFn, model: modelInstance } = await getProviderAndModel(model.modelString, model.id)
     const parts = model.modelString.split("/")
     const providerName = parts[0]
 
@@ -392,17 +400,99 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
         prompt,
       }
 
-      // Anthropic models don't allow both temperature and topP
-      if (providerName === "anthropic") {
-        streamTextOptions.temperature = model.temperature ?? 0.1
-        // Don't set topP for Anthropic models
+      // Check if this is a reasoning model or thinking is explicitly enabled
+      const isReasoningModel = REASONING_MODELS.has(model.id)
+      const isThinkingEnabled = model.enableThinking === true || isReasoningModel
+
+      if (!isReasoningModel) {
+        // Anthropic models don't allow both temperature and topP
+        if (providerName === "anthropic") {
+          streamTextOptions.temperature = model.temperature ?? 0.1
+          // Don't set topP for Anthropic models
+        } else {
+          if (model.temperature !== undefined) {
+            streamTextOptions.temperature = model.temperature
+          }
+          if (model.topP !== undefined) {
+            streamTextOptions.topP = model.topP
+          }
+        }
       } else {
-        streamTextOptions.temperature = model.temperature ?? 0.1
-        streamTextOptions.topP = model.topP ?? 1
+        console.log(`[v0] Skipping temperature/topP for reasoning model ${model.id}`)
       }
 
       if (maxTokens) {
         streamTextOptions.maxTokens = maxTokens
+      }
+
+      // Add providerOptions for reasoning/thinking models
+      if (isThinkingEnabled) {
+        if (providerName === "openai" && isReasoningModel) {
+          streamTextOptions.providerOptions = {
+            openai: {
+              reasoningSummary: 'detailed', // Get comprehensive reasoning
+            },
+          }
+          console.log(`[v0] Enabled detailed reasoning for ${model.id}`)
+        } else if (providerName === "google" && THINKING_CAPABLE_MODELS.has(model.id)) {
+          streamTextOptions.providerOptions = {
+            google: {
+              thinkingConfig: {
+                thinkingBudget: 1024, // Low budget for Wordle (sufficient for simple reasoning)
+                includeThoughts: true, // Include thoughts in response
+              },
+            },
+          }
+          console.log(`[v0] Enabled thinking (budget: 1024) for ${model.id}`)
+        } else if (providerName === "anthropic" && ANTHROPIC_REASONING_MODELS.has(model.id)) {
+          streamTextOptions.providerOptions = {
+            anthropic: {
+              thinking: {
+                type: 'enabled',
+                budgetTokens: 2000, // Low budget for Wordle (sufficient for simple reasoning)
+              },
+            },
+          }
+          console.log(`[v0] Enabled thinking (budget: 2000) for ${model.id}`)
+        } else if (providerName === "groq" && GROQ_REASONING_MODELS.has(model.id)) {
+          streamTextOptions.providerOptions = {
+            groq: {
+              reasoningFormat: 'parsed', // Expose reasoning in parsed format
+              reasoningEffort: 'default', // Enable reasoning (for qwen models)
+            },
+          }
+          console.log(`[v0] Enabled reasoning (format: parsed, effort: default) for ${model.id}`)
+        }
+      } else {
+        // Explicitly disable thinking/reasoning when enableThinking is false
+        if (providerName === "google" && THINKING_CAPABLE_MODELS.has(model.id)) {
+          streamTextOptions.providerOptions = {
+            google: {
+              thinkingConfig: {
+                thinkingBudget: 0, // Disable thinking
+                includeThoughts: false, // Don't include thoughts
+              },
+            },
+          }
+          console.log(`[v0] Disabled thinking for ${model.id}`)
+        } else if (providerName === "anthropic" && ANTHROPIC_REASONING_MODELS.has(model.id)) {
+          streamTextOptions.providerOptions = {
+            anthropic: {
+              thinking: {
+                type: 'disabled',
+              },
+            },
+          }
+          console.log(`[v0] Disabled thinking for ${model.id}`)
+        } else if (providerName === "groq" && GROQ_REASONING_MODELS.has(model.id)) {
+          streamTextOptions.providerOptions = {
+            groq: {
+              reasoningFormat: 'hidden', // Hide reasoning
+              reasoningEffort: 'none', // Disable reasoning
+            },
+          }
+          console.log(`[v0] Disabled reasoning for ${model.id}`)
+        }
       }
 
       // streamText returns synchronously, but streaming happens async
@@ -416,6 +506,12 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
       }
 
       console.log(`[v0] streamText returned for ${model.id}`)
+      
+      // Debug: Check what properties are available
+      console.log(`[v0] Result properties:`, Object.keys(result))
+      console.log(`[v0] Has reasoning property:`, 'reasoning' in result)
+      console.log(`[v0] Has reasoningText property:`, 'reasoningText' in result)
+      console.log(`[v0] Has fullStream:`, 'fullStream' in result)
     } catch (err) {
       streamError = err
 
@@ -464,8 +560,82 @@ export async function runModelOnClue(params: RunClueParams): Promise<RunClueResu
     // Try to read from stream if result exists and we don't have text yet
     if (result && !text) {
       try {
-        // Try textStream first
-        if (result.textStream) {
+        // Try fullStream first (AI SDK 5.0+) - contains both reasoning and text
+        if (result.fullStream) {
+          console.log(`[v0] Consuming fullStream for ${model.id}`)
+          const accumulatedText: string[] = []
+          let reasoningText = ""
+          
+          try {
+            for await (const chunk of result.fullStream) {
+              console.log(`[v0] fullStream chunk type: ${chunk.type}`)
+
+              // Handle reasoning chunks (type: 'reasoning', has 'text' property)
+              if (chunk.type === "reasoning") {
+                const delta = (chunk as any).text || ""
+                reasoningText += delta
+                console.log(`[v0] Reasoning chunk (${delta.length} chars, total: ${reasoningText.length}): "${delta.substring(0, 50)}..."`)
+                // Send reasoning as progress
+                if (onModelProgress && reasoningText) {
+                  onModelProgress(model.id, clue.id, reasoningText)
+                }
+              }
+              // Also handle reasoning-delta for backwards compatibility
+              else if (chunk.type === "reasoning-delta") {
+                // Debug: log chunk properties to see what's available
+                const chunkAny = chunk as any
+                const chunkKeys = Object.keys(chunkAny)
+                // Try all possible property names for reasoning content
+                const delta = chunkAny.text || chunkAny.textDelta || chunkAny.delta || chunkAny.content || chunkAny.reasoning || ""
+                
+                // Debug: log the actual chunk structure for first few deltas
+                if (reasoningText.length < 100) {
+                  console.log(`[v0] DEBUG reasoning-delta chunk:`, JSON.stringify({
+                    type: chunkAny.type,
+                    keys: chunkKeys,
+                    text: chunkAny.text,
+                    textDelta: chunkAny.textDelta,
+                    delta: chunkAny.delta,
+                    content: chunkAny.content,
+                    reasoning: chunkAny.reasoning,
+                    extractedDelta: delta,
+                    deltaLength: delta.length
+                  }, null, 2))
+                }
+                
+                reasoningText += delta
+                console.log(`[v0] Reasoning delta (${delta.length} chars, total: ${reasoningText.length}, chunk keys: ${chunkKeys.join(', ')}): "${delta.substring(0, 100).replace(/\n/g, '\\n').replace(/\r/g, '\\r')}..."`)
+                // Send reasoning as progress
+                if (onModelProgress && reasoningText) {
+                  onModelProgress(model.id, clue.id, reasoningText)
+                }
+              }
+              // Handle text deltas
+              else if (chunk.type === "text-delta") {
+                if (tFirst === undefined) {
+                  tFirst = performance.now()
+                }
+                const delta = (chunk as any).textDelta || ""
+                accumulatedText.push(delta)
+                text += delta
+                console.log(`[v0] Text delta: "${delta}"`)
+              }
+            }
+            console.log(`[v0] fullStream complete. Text: "${text}", Reasoning: ${reasoningText.length} chars`)
+            if (reasoningText.length > 0) {
+              console.log(`[v0] Reasoning preview (first 200 chars): "${reasoningText.substring(0, 200).replace(/\n/g, '\\n')}"`)
+            }
+          } catch (fullStreamError) {
+            console.warn(`[v0] fullStream error for ${model.id}:`, fullStreamError)
+            // If we accumulated some text, use it
+            if (accumulatedText.length > 0) {
+              text = accumulatedText.join("")
+            }
+          }
+        }
+        // Fallback to textStream if fullStream not available
+        else if (result.textStream) {
+          console.log(`[v0] Consuming textStream for ${model.id}`)
           const accumulatedDeltas: string[] = []
           try {
             for await (const delta of result.textStream) {

@@ -106,6 +106,8 @@ export async function POST(request: NextRequest) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "config", config: clientConfig })}\n\n`))
 
         console.log("[wordle] Creating WordleEngine...")
+        // Track previous reasoning text per model to send incremental deltas
+        const previousReasoning = new Map<string, string>()
         const engine = new WordleEngine(wordleConfig, {
           onStateChange: (state: WordleState) => {
             try {
@@ -133,11 +135,36 @@ export async function POST(request: NextRequest) {
           },
           onModelStart: (modelId: string, guessIndex: number) => {
             try {
+              // Clear previous reasoning when starting a new guess
+              previousReasoning.set(modelId, "")
               controller.enqueue(
                 encoder.encode(`data: ${JSON.stringify({ type: "modelStart", modelId, guessIndex })}\n\n`),
               )
             } catch (error) {
               console.error("[wordle] Failed to send model start:", error)
+            }
+          },
+          onModelProgress: (modelId: string, guessIndex: number, reasoning: string) => {
+            try {
+              // Calculate incremental delta
+              const previous = previousReasoning.get(modelId) || ""
+              const delta = reasoning.slice(previous.length)
+              previousReasoning.set(modelId, reasoning)
+              
+              if (delta) {
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "reasoning-delta",
+                      modelId,
+                      guessIndex,
+                      delta,
+                    })}\n\n`,
+                  ),
+                )
+              }
+            } catch (error) {
+              console.error("[wordle] Failed to send reasoning:", error)
             }
           },
           onGuessComplete: (guess: WordleGuess) => {

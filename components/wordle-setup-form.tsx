@@ -9,6 +9,7 @@ import { DEFAULT_MODELS } from "@/lib/constants"
 import { PlayCircle, Loader2, Plus, Trash2 } from "lucide-react"
 import { CustomEntryDialog } from "@/components/custom-entry-dialog"
 import { getCustomEntries, deleteCustomEntry } from "@/lib/custom-entries"
+import { getSelectedModels, saveSelectedModels } from "@/lib/selected-models"
 import type { CustomEntry, ModelConfig } from "@/lib/types"
 
 interface WordleSetupFormProps {
@@ -17,7 +18,12 @@ interface WordleSetupFormProps {
 }
 
 export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
-  const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_MODELS.map((m) => m.id))
+  // Initialize with all models by default to ensure SSR/client consistency
+  // Load from localStorage after mount to avoid hydration mismatch
+  const [selectedModels, setSelectedModels] = useState<string[]>(() => {
+    // Always start with all models for consistent SSR/client rendering
+    return DEFAULT_MODELS.map((m) => m.id)
+  })
   const [selectedCustomEntries, setSelectedCustomEntries] = useState<string[]>([])
   const [wordMode, setWordMode] = useState<"random" | "custom">("random")
   const [customWord, setCustomWord] = useState("")
@@ -31,6 +37,20 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
   useEffect(() => {
     setCustomEntries(getCustomEntries())
   }, [])
+
+  // Load selected models from localStorage after mount (client-side only)
+  useEffect(() => {
+    const saved = getSelectedModels()
+    // If we have saved models, use them; otherwise keep default (all models)
+    if (saved.length > 0) {
+      setSelectedModels(saved)
+    }
+  }, [])
+
+  // Save selected models to localStorage whenever they change
+  useEffect(() => {
+    saveSelectedModels(selectedModels)
+  }, [selectedModels])
 
   const handleStart = () => {
     // Validate custom word if selected
@@ -92,9 +112,13 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
   }
 
   const toggleModel = (modelId: string) => {
-    setSelectedModels((prev) => (prev.includes(modelId) ? prev.filter((id) => id !== modelId) : [...prev, modelId]))
+    const wasSelected = selectedModels.includes(modelId)
+    const newSelection = wasSelected
+      ? selectedModels.filter((id) => id !== modelId)
+      : [...selectedModels, modelId]
+    setSelectedModels(newSelection)
     // Remove custom entries for this model if deselected
-    if (!selectedModels.includes(modelId)) {
+    if (wasSelected) {
       setSelectedCustomEntries((prev) =>
         prev.filter((entryId) => {
           const entry = customEntries.find((e) => e.id === entryId)
@@ -102,6 +126,16 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
         })
       )
     }
+  }
+
+  const selectAllModels = () => {
+    setSelectedModels(DEFAULT_MODELS.map((m) => m.id))
+  }
+
+  const deselectAllModels = () => {
+    setSelectedModels([])
+    // Also clear custom entries when deselecting all
+    setSelectedCustomEntries([])
   }
 
   const toggleCustomEntry = (entryId: string) => {
@@ -222,9 +256,33 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
 
         {/* Model selection */}
         <div className="space-y-2">
-          <Label className="text-foreground">
-            Select Models ({selectedModels.length}/{DEFAULT_MODELS.length})
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-foreground">
+              Select Models ({selectedModels.length}/{DEFAULT_MODELS.length})
+            </Label>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={selectAllModels}
+                disabled={isRunning || selectedModels.length === DEFAULT_MODELS.length}
+                className="h-8 text-xs"
+              >
+                Select All
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={deselectAllModels}
+                disabled={isRunning || selectedModels.length === 0}
+                className="h-8 text-xs"
+              >
+                Deselect All
+              </Button>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             {DEFAULT_MODELS.map((model) => (
               <button
