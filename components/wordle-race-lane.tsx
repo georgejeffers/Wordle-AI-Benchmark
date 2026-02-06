@@ -7,7 +7,7 @@ import { Card, CardContent } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { CheckCircle2, XCircle, Clock, Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { MODEL_COLORS, REASONING_MODELS } from "@/lib/constants"
+import { MODEL_COLORS } from "@/lib/constants"
 
 interface WordleRaceLaneProps {
   model: ModelConfig
@@ -97,8 +97,7 @@ export function WordleRaceLane({ model, gameState, isRunning, isModelWorking, bl
   const totalTime = liveTime
   const baseModelId = model.baseModelId || model.id
   const hasThinkingText = currentGuessThinking.trim().length > 0
-  const isReasoningModel = REASONING_MODELS.has(baseModelId)
-  const isThinkingEnabled = isReasoningModel || model.enableThinking === true
+  const isThinkingEnabled = model.enableThinking === true
   const shouldShowThinkingToggle =
     (isThinkingEnabled || hasThinkingText) &&
     (isModelWorking || hasThinkingText)

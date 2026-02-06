@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -18,6 +18,22 @@ export function RaceSetupForm({ onStart, isRunning, examples }: RaceSetupFormPro
   const [raceName, setRaceName] = useState("")
   const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_MODELS.map((m) => m.id))
   const [selectedExample, setSelectedExample] = useState(0)
+  const [maxModels, setMaxModels] = useState<number | null>(null)
+
+  // Fetch config to know model cap
+  useEffect(() => {
+    fetch("/api/config")
+      .then((res) => res.json())
+      .then((data) => {
+        const cap = data.maxModels ?? null
+        setMaxModels(cap)
+        // Clamp initial selection
+        if (cap !== null && selectedModels.length > cap) {
+          setSelectedModels((prev) => prev.slice(0, cap))
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const handleStart = () => {
     const example = examples[selectedExample]
@@ -25,7 +41,12 @@ export function RaceSetupForm({ onStart, isRunning, examples }: RaceSetupFormPro
   }
 
   const toggleModel = (modelId: string) => {
-    setSelectedModels((prev) => (prev.includes(modelId) ? prev.filter((id) => id !== modelId) : [...prev, modelId]))
+    setSelectedModels((prev) => {
+      if (prev.includes(modelId)) return prev.filter((id) => id !== modelId)
+      // Enforce cap when adding
+      if (maxModels !== null && prev.length >= maxModels) return prev
+      return [...prev, modelId]
+    })
   }
 
   return (
@@ -78,24 +99,33 @@ export function RaceSetupForm({ onStart, isRunning, examples }: RaceSetupFormPro
         {/* Model selection */}
         <div className="space-y-2">
           <Label className="text-foreground">
-            Select Models ({selectedModels.length}/{DEFAULT_MODELS.length})
+            Select Models ({selectedModels.length}{maxModels !== null ? `/${maxModels}` : `/${DEFAULT_MODELS.length}`})
           </Label>
           <div className="grid grid-cols-2 gap-2">
-            {DEFAULT_MODELS.map((model) => (
-              <button
-                key={model.id}
-                onClick={() => toggleModel(model.id)}
-                disabled={isRunning}
-                className={`p-2 rounded-lg border text-sm transition-all ${
-                  selectedModels.includes(model.id)
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "border-border bg-muted text-muted-foreground hover:border-primary/50"
-                }`}
-              >
-                {model.name}
-              </button>
-            ))}
+            {DEFAULT_MODELS.map((model) => {
+              const isSelected = selectedModels.includes(model.id)
+              const atCap = !isSelected && maxModels !== null && selectedModels.length >= maxModels
+              return (
+                <button
+                  key={model.id}
+                  onClick={() => toggleModel(model.id)}
+                  disabled={isRunning || atCap}
+                  className={`p-2 rounded-lg border text-sm transition-all ${
+                    isSelected
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-muted text-muted-foreground hover:border-primary/50"
+                  } ${atCap ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  {model.name}
+                </button>
+              )
+            })}
           </div>
+          {maxModels !== null && (
+            <p className="text-xs text-muted-foreground">
+              Public demo limited to {maxModels} models per race. Clone the repo and set UNRESTRICTED=true for unlimited access.
+            </p>
+          )}
         </div>
 
         {/* Start button */}

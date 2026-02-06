@@ -1,156 +1,196 @@
-# Wordle Race - Deterministic AI Testing Platform
+<div align="center">
 
-A deterministic testing platform where AI models compete head-to-head solving Wordle puzzles. Built with Next.js, Vercel AI SDK, and real-time streaming to measure what actually matters: **accuracy + speed**.
+# WordleBench
 
-## Why This Exists
+### AI Wordle Benchmark — Compare 34+ Language Models Head-to-Head
 
-Traditional AI benchmarks are unreliable and don't apply to day-to-day use. They measure abstract capabilities on curated datasets, but real-world AI needs to be:
+[![Live Demo](https://img.shields.io/badge/demo-wordlebench.ginger.sh-22c55e?style=for-the-badge)](https://wordlebench.ginger.sh)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
 
-- **Accurate**: Get the right answer
-- **Fast**: Respond quickly enough to be useful
+**Deterministic AI benchmarking platform. Every model solves the same Wordle puzzles under identical conditions.**
 
-This platform provides **deterministic testing** that measures both simultaneously. Every model solves the same Wordle puzzle under identical conditions, giving you real, comparable results you can trust.
+[Live Results](https://wordlebench.ginger.sh) · [How It Works](#how-it-works) · [Models Tested](#models-tested) · [Run Locally](#quick-start)
 
-## Features
+</div>
 
-- **Wordle Racing**: Watch multiple AI models compete to solve the same Wordle puzzle in real-time
-- **Deterministic Testing**: Same puzzle, same conditions, fair comparison
-- **Live Metrics**: Real-time tracking of guesses, timing (TTFT, E2E latency), and accuracy
-- **Multiple Models**: Test OpenAI GPT-5/5.1, Claude 4.5/Haiku, Gemini 3/2.5, Groq Llama 3.1, xAI Grok, and more
-- **Custom Prompts**: Create custom entries with your own prompts to test prompt engineering strategies
-- **User Participation**: Race against the AI models yourself
-- **Streaming Results**: Server-Sent Events for real-time updates
-- **Export Results**: Download race data as JSON for analysis
+---
+
+## What is WordleBench?
+
+WordleBench is a deterministic testing platform where AI models compete head-to-head solving Wordle puzzles. It measures what traditional benchmarks miss: **accuracy + speed** under identical, reproducible conditions.
+
+Every model gets the same word, the same rules, and the same number of attempts. Results are streamed in real-time so you can watch models think and guess live.
+
+### Why Wordle?
+
+- **Concrete task** — not abstract reasoning on curated datasets
+- **Deterministic** — same word, same conditions, fair comparison
+- **Speed matters** — fast + correct beats slow + correct
+- **Reproducible** — run the same word multiple times to verify consistency
+- **Constrained output** — forces precise 5-letter responses, testing instruction following
+
+## Benchmark Results
+
+The full benchmark covers **34+ models × 50 standardized words = 1,700+ games**.
+
+| Metric | What It Measures |
+|--------|-----------------|
+| **Win Rate** | % of puzzles solved within 6 guesses |
+| **Avg Guesses** | Mean guesses to solve (lower is better) |
+| **Speed (TTFT)** | Time to first token — model latency |
+| **Speed (E2E)** | End-to-end time per guess |
+| **Cost** | Estimated API cost per game |
+| **Composite** | Combined score balancing all factors |
+
+> View the full interactive leaderboard at [wordlebench.ginger.sh](https://wordlebench.ginger.sh)
+
+## Models Tested
+
+| Provider | Models |
+|----------|--------|
+| **OpenAI** | GPT-5, GPT-5.1, GPT-5.2, GPT-4.1-mini, o1, o3-mini |
+| **Anthropic** | Claude Opus 4.6, Opus 4.5, Opus 4, Sonnet 4.5, Sonnet 4, Haiku 4.5, 3.7 Sonnet |
+| **Google** | Gemini 3 Pro Preview, Gemini 2.5 Flash, Gemini 2.5 Pro |
+| **xAI** | Grok 4 Fast |
+| **Meta** | Llama 3.3 70B |
+| **Alibaba** | Qwen 3-32B, Qwen QWQ-32B |
+| **DeepSeek** | DeepSeek R1 Distill Llama 70B |
+| **Moonshot** | Kimi K2 0905 |
 
 ## How It Works
 
 ### Deterministic Testing
 
 Every race uses the same target word for all models. Each model:
-1. Receives identical game state (previous guesses and feedback)
-2. Has the same constraints (6 guesses max, 5-letter words)
-3. Is measured with precise timing (request start, first token, completion)
-4. Gets ranked by: solved status → time to solve → guess count
 
-This eliminates variables and gives you **reproducible, comparable results**.
+1. Receives identical game state (previous guesses + Wordle feedback)
+2. Has the same constraints (6 guesses max, 5-letter words only)
+3. Is measured with precise timing (request start → first token → completion)
+4. Gets ranked by: solved status → time to solve → guess count
 
 ### Scoring & Ranking
 
 Models are ranked by:
-1. **Solved**: Did they solve it? (Yes > No)
-2. **Speed**: If solved, how fast? (Total time across all guesses)
-3. **Efficiency**: If tied on speed, fewer guesses wins
-4. **Closeness**: If failed, how close did they get? (Correct letters + present letters)
 
-Failed attempts are ranked by closeness score (correct letters weighted 3x, present letters 1x) to give credit for partial solutions.
+1. **Solved** — Did they get the word? (solvers always rank above failures)
+2. **Speed** — Among solvers, faster total time wins
+3. **Efficiency** — If tied on speed, fewer guesses wins
+4. **Closeness** — Failed models ranked by how close they got (correct letters × 3 + present letters × 1)
+
+### Real-Time Streaming
+
+Results are streamed via **Server-Sent Events (SSE)**. You watch each model's guesses appear live as they generate answers, with per-token timing for accurate latency measurement.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Framework** | Next.js 16 (App Router) |
+| **AI Integration** | Vercel AI SDK v5 via [OpenRouter](https://openrouter.ai) |
+| **Runtime** | Bun |
+| **Language** | TypeScript 5 |
+| **Styling** | Tailwind CSS v4, shadcn/ui |
+| **Charts** | Recharts |
+| **Deployment** | Vercel |
 
 ## Quick Start
 
 ```bash
-# Install dependencies
-npm install
+# Clone the repo
+git clone https://github.com/georgejeffers/Wordle-AI-Benchmark.git
+cd Wordle-AI-Benchmark
 
-# Start development server
-npm run dev
+# Install dependencies
+bun install
+
+# Add API keys to .env
+cp .env.example .env
+
+# Start dev server
+bun dev
 ```
 
-Visit `http://localhost:3000` to start racing!
+Visit `http://localhost:3000` to start benchmarking.
+
+### Environment Variables
+
+All models are accessed through [OpenRouter](https://openrouter.ai), so you only need one API key:
+
+```env
+OPENROUTER_API_KEY=sk-or-...
+```
+
+Get your key at [openrouter.ai/keys](https://openrouter.ai/keys).
+
+### Run the Full Benchmark
+
+```bash
+# Run benchmark across all models and 50 words
+bun benchmark
+
+# Resume a benchmark that was interrupted
+bun benchmark:resume
+
+# Quick benchmark (fewer words)
+bun benchmark:quick
+```
 
 ## Architecture
 
-### Core Components
+```
+app/
+├── layout.tsx              # Root layout with SEO metadata
+├── page.tsx                # Home — benchmark results dashboard
+├── about/page.tsx          # Methodology & documentation
+├── sitemap.ts              # Dynamic sitemap generation
+├── robots.ts               # Search engine crawling rules
+├── opengraph-image.tsx     # Dynamic OG image generation
+└── api/wordle/stream/      # SSE streaming endpoint
 
-- **Wordle Engine** (`lib/wordle-engine.ts`): Orchestrates Wordle games with multiple models
-- **AI Runner** (`lib/ai-runner.ts`): Vercel AI SDK integration with streaming and precise timing
-- **Types** (`lib/types.ts`): TypeScript types for Wordle games, guesses, and results
-- **Wordle Utils** (`lib/wordle-utils.ts`): Feedback computation, closeness scoring, cost estimation
-- **API Routes**: 
-  - `/api/wordle/stream` - SSE streaming for live Wordle races
+lib/
+├── wordle-engine.ts        # Game orchestration (parallel model execution)
+├── ai-runner.ts            # Vercel AI SDK integration + timing
+├── wordle-utils.ts         # Feedback computation + scoring
+├── wordle-words.ts         # Word list
+├── constants.ts            # 34+ model configurations
+└── benchmark-data.ts       # Benchmark result loader
 
-### Wordle Game Flow
-
-1. **Setup**: Select models and optionally a target word (or use random)
-2. **Race Start**: All models begin simultaneously with the same target word
-3. **Guessing**: Each model makes up to 6 guesses, receiving feedback after each
-4. **Real-time Updates**: Watch guesses appear live with timing metrics
-5. **Results**: See who solved it fastest, who got closest, and detailed stats
-
-## Testing AI Models
-
-### Why Deterministic Testing Matters
-
-Traditional benchmarks have problems:
-- **Curated datasets** don't reflect real-world usage
-- **Abstract tasks** don't measure practical performance
-- **No timing component** ignores speed, which matters in production
-- **Inconsistent conditions** make comparisons unreliable
-
-This platform solves these by:
-- **Real-world task**: Wordle is a concrete problem people actually solve
-- **Same conditions**: Every model gets identical inputs
-- **Speed matters**: Fast and correct beats slow and correct
-- **Reproducible**: Run the same word multiple times to verify consistency
-
-### What Gets Measured
-
-- **Accuracy**: Did they solve it? How many guesses?
-- **Speed**: Time to first token (TTFT), end-to-end latency (E2E)
-- **Efficiency**: Total tokens used, estimated cost
-- **Consistency**: Run multiple races to see variance
-
-### Custom Prompts
-
-Test prompt engineering strategies by creating custom entries:
-- Use the same base model with different prompts
-- Compare "model + your prompt" vs "model + default prompt"
-- See which prompts lead to faster, more accurate solutions
-
-## Configuration
-
-### Model Configuration
-
-Modify `lib/constants.ts` to adjust model settings:
-
-```typescript
-{
-  id: 'gpt-5',
-  name: 'GPT-5',
-  modelString: 'openai/gpt-5',
-  temperature: 0.1,
-  topP: 1,
-}
+components/
+├── benchmark/              # Leaderboard, charts, analysis views
+├── wordle-*.tsx            # Game board, race lanes, results
+└── ui/                     # shadcn/ui primitives
 ```
 
-### Custom Wordle Words
+## Key Features
 
-- **Random**: Uses a random word from the Wordle word list
-- **Custom**: Specify your own 5-letter word for testing/reproducibility
+- **Live Wordle Racing** — Watch multiple AI models solve puzzles simultaneously
+- **Benchmark Dashboard** — Pre-computed results for 34+ models across 50 words
+- **Custom Prompts** — Test your own prompt engineering strategies against defaults
+- **User Participation** — Play against the AI models yourself
+- **Export Data** — Download results as JSON for your own analysis
+- **Deterministic Conditions** — Every model gets identical inputs for fair comparison
 
-## Tech Stack
+## Contributing
 
-- **Framework**: Next.js 16 with App Router
-- **AI**: Vercel AI SDK v5 with AI Gateway
-- **Styling**: Tailwind CSS v4
-- **UI**: shadcn/ui components
-- **Type Safety**: TypeScript throughout
-- **Deployment**: Vercel (optimized for edge runtime)
+Contributions welcome! Areas of interest:
 
-## Performance
-
-- Parallel model execution (all models race simultaneously)
-- Streaming token capture for precise timing measurements
-- Client-side state caching with React hooks
-- SSE for efficient real-time updates
-- Sub-100ms UI updates
-
-## Future Enhancements
-
-- [ ] Batch testing mode (run multiple words automatically)
-- [ ] Historical race leaderboards
-- [ ] Advanced analytics dashboard
-- [ ] Integration with additional model providers
-- [ ] Custom word lists for domain-specific testing
+- Adding new model providers
+- Improving the scoring algorithm
+- UI/UX improvements to the benchmark dashboard
+- Additional analysis views
 
 ## License
 
-MIT
+[MIT](LICENSE)
+
+---
+
+<div align="center">
+
+Built by [George Jefferson](https://x.com/GeorgeJeffersn) · Sponsored by [Art Freebrey](https://x.com/artfreebrey)
+
+[wordlebench.ginger.sh](https://wordlebench.ginger.sh)
+
+</div>

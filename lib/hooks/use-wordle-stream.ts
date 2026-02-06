@@ -10,8 +10,7 @@ import type {
   WordleModelResult,
   ModelConfig,
 } from "@/lib/types"
-import { computeWordleFeedback, calculateClosenessScore, calculateEstimatedCost } from "@/lib/wordle-utils"
-import { REASONING_MODELS } from "@/lib/constants"
+import { computeWordleFeedback, calculateClosenessScore, calculateEstimatedCost, rankWordleResults } from "@/lib/wordle-utils"
 
 interface StreamEvent {
   type: "config" | "state" | "modelStart" | "reasoning-delta" | "guess" | "modelComplete" | "complete" | "error"
@@ -256,11 +255,7 @@ export function useWordleStream(): UseWordleStreamResult {
                       // 2. enableThinking is undefined and it's a reasoning model (which always has thinking)
                       // Do NOT show thinking if enableThinking is explicitly false
                       const modelSupportsThinking =
-                        !!modelConfig &&
-                        (
-                          modelConfig.enableThinking === true ||
-                          (modelConfig.enableThinking !== false && REASONING_MODELS.has(baseModelId))
-                        )
+                        !!modelConfig && modelConfig.enableThinking === true
 
                       if (modelSupportsThinking) {
                         setCurrentGuessThinking((prev) => {
@@ -585,40 +580,7 @@ export function useWordleStream(): UseWordleStreamResult {
       })
     }
 
-    // Sort by: solved first, then by time, then by guess count
-    // For failed/didn't finish attempts: rank by closeness score (higher = closer)
-    modelResults.sort((a, b) => {
-      // Solved models rank higher
-      if (a.solved !== b.solved) {
-        return a.solved ? -1 : 1
-      }
-
-      // Among solved models, fewer guesses wins
-      if (a.solved && b.solved) {
-        if (a.guessCount !== b.guessCount) {
-          return a.guessCount - b.guessCount
-        }
-        // Same guess count, faster time wins
-        const timeA = a.timeToSolveMs || Infinity
-        const timeB = b.timeToSolveMs || Infinity
-        return timeA - timeB
-      }
-
-      // Both failed/didn't finish - rank by closeness score (higher = better), then by guess count
-      const closenessA = a.closenessScore ?? 0
-      const closenessB = b.closenessScore ?? 0
-      if (closenessA !== closenessB) {
-        return closenessB - closenessA // Higher closeness score ranks higher
-      }
-      // Same closeness, more guesses = better (they tried harder)
-      return b.guessCount - a.guessCount
-    })
-
-    // Assign ranks
-    modelResults.forEach((result, index) => {
-      result.rank = index + 1
-    })
-
+    rankWordleResults(modelResults)
     const winner = modelResults.find((r) => r.solved && r.rank === 1)?.modelId
 
     const finalResult: WordleRaceResult = {

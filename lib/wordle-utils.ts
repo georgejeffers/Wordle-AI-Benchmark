@@ -1,6 +1,6 @@
 // Wordle utility functions
 
-import type { WordleFeedback } from "./types"
+import type { WordleFeedback, WordleModelResult } from "./types"
 import { normalizeAnswer } from "./scoring"
 import { isValidWord } from "./wordle-words"
 
@@ -130,16 +130,26 @@ function getEstimatedCostPerMillionTokens(modelId: string): { input: number; out
   const costMap: Record<string, { input: number; output: number }> = {
     "gpt-5": { input: 2.5, output: 10 },
     "gpt-5-mini": { input: 0.15, output: 0.6 },
+    "gpt-5-nano": { input: 0.05, output: 0.2 },
     "gpt-5.1": { input: 2.5, output: 10 },
     "gpt-5.1-high": { input: 2.5, output: 10 },
     "gpt-5.1-medium": { input: 2.5, output: 10 },
     "gpt-5.1-low": { input: 2.5, output: 10 },
     "gpt-5.1-none": { input: 2.5, output: 10 },
+    "gpt-5.2": { input: 1.75, output: 14 },
     "gpt-4.1-mini": { input: 0.15, output: 0.6 },
     "gemini-2.5-flash": { input: 0.075, output: 0.3 },
     "gemini-2.5-pro": { input: 1.25, output: 5 },
-    "claude-haiku-4.5": { input: 0.25, output: 1.25 },
+    "claude-opus-4.6": { input: 5, output: 25 },
+    "claude-opus-4.6-thinking": { input: 5, output: 25 },
+    "claude-opus-4.5": { input: 5, output: 25 },
+    "claude-opus-4.5-thinking": { input: 5, output: 25 },
+    "claude-opus-4": { input: 15, output: 75 },
+    "claude-opus-4-thinking": { input: 15, output: 75 },
+    "claude-sonnet-4": { input: 3, output: 15 },
+    "claude-sonnet-4-thinking": { input: 3, output: 15 },
     "claude-sonnet-4.5": { input: 3, output: 15 },
+    "claude-haiku-4.5": { input: 0.25, output: 1.25 },
     "llama-3.3-70b": { input: 0.59, output: 0.79 }, // Groq pricing
     "kimi-k2-0905": { input: 0.59, output: 0.79 }, // Groq pricing
     "qwen3-32b": { input: 0.59, output: 0.79 }, // Groq pricing
@@ -161,5 +171,33 @@ export function calculateEstimatedCost(
   const inputCost = (promptTokens / 1_000_000) * costs.input
   const outputCost = (completionTokens / 1_000_000) * costs.output
   return inputCost + outputCost
+}
+
+/**
+ * Rank and sort WordleModelResults in-place.
+ * Solved models rank higher, then by guess count, then by time.
+ * Failed models ranked by closeness score.
+ * Mutates the array and assigns rank fields. Returns the same array.
+ */
+export function rankWordleResults(results: WordleModelResult[]): WordleModelResult[] {
+  results.sort((a, b) => {
+    if (a.solved !== b.solved) return a.solved ? -1 : 1
+
+    if (a.solved && b.solved) {
+      if (a.guessCount !== b.guessCount) return a.guessCount - b.guessCount
+      const timeA = a.timeToSolveMs ?? Infinity
+      const timeB = b.timeToSolveMs ?? Infinity
+      return timeA - timeB
+    }
+
+    // Both failed
+    const closenessA = a.closenessScore ?? 0
+    const closenessB = b.closenessScore ?? 0
+    if (closenessA !== closenessB) return closenessB - closenessA
+    return b.guessCount - a.guessCount
+  })
+
+  results.forEach((r, i) => { r.rank = i + 1 })
+  return results
 }
 

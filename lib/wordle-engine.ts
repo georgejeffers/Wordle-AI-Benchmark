@@ -12,7 +12,7 @@ import type {
 } from "./types"
 import { runModelOnClue } from "./ai-runner"
 import { generateWordlePrompt } from "./prompts"
-import { computeWordleFeedback, extractWordleGuess, calculateClosenessScore, calculateEstimatedCost } from "./wordle-utils"
+import { computeWordleFeedback, extractWordleGuess, calculateClosenessScore, calculateEstimatedCost, rankWordleResults } from "./wordle-utils"
 import { isValidWord } from "./wordle-words"
 
 export interface WordleCallbacks {
@@ -349,42 +349,7 @@ export class WordleEngine {
       })
     })
 
-    // Sort by: solved first, then by time, then by guess count
-    // For failed attempts: rank by closeness score (higher = closer)
-    results.sort((a, b) => {
-      // Solved models rank higher
-      if (a.solved !== b.solved) {
-        return a.solved ? -1 : 1
-      }
-
-      // Among solved models, faster time wins
-      if (a.solved && b.solved) {
-        const timeA = a.timeToSolveMs || Infinity
-        const timeB = b.timeToSolveMs || Infinity
-        if (Math.abs(timeA - timeB) > 100) {
-          // More than 100ms difference, use time
-          return timeA - timeB
-        }
-        // Times are close, use guess count
-        return a.guessCount - b.guessCount
-      }
-
-      // Both failed - rank by closeness score (higher = better), then by guess count
-      const closenessA = a.closenessScore ?? 0
-      const closenessB = b.closenessScore ?? 0
-      if (closenessA !== closenessB) {
-        return closenessB - closenessA // Higher closeness score ranks higher
-      }
-      // Same closeness, more guesses = better (they tried harder)
-      return b.guessCount - a.guessCount
-    })
-
-    // Assign ranks
-    results.forEach((result, index) => {
-      result.rank = index + 1
-    })
-
-    return results
+    return rankWordleResults(results)
   }
 
   /**

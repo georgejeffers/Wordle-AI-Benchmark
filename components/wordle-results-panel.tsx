@@ -6,7 +6,7 @@ import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 import { Trophy, Clock, Target, ArrowUpDown, Zap, DollarSign, Coins, TrendingUp } from "lucide-react"
 import { useMemo, useState } from "react"
-import { calculateClosenessScore, calculateEstimatedCost } from "@/lib/wordle-utils"
+import { calculateClosenessScore, calculateEstimatedCost, rankWordleResults } from "@/lib/wordle-utils"
 
 type SortOption = "rank" | "time" | "tokens" | "cost"
 
@@ -79,46 +79,13 @@ export function WordleResultsPanel({ result, userGameState }: WordleResultsPanel
         rank: 0, // Will be calculated
       }
       
-      // Store didNotFinish flag for display purposes
-      ;(userResultData as any).didNotFinish = didNotFinish
+      userResultData.didNotFinish = didNotFinish
 
       // Add user to results
       allResultsList.push(userResultData)
     }
 
-    // Sort by: solved first, then by time, then by guess count
-    // For failed attempts: rank by closeness score (higher = closer)
-    allResultsList.sort((a, b) => {
-      // Solved models rank higher
-      if (a.solved !== b.solved) {
-        return a.solved ? -1 : 1
-      }
-
-      // Among solved models, fewer guesses wins
-      if (a.solved && b.solved) {
-        if (a.guessCount !== b.guessCount) {
-          return a.guessCount - b.guessCount
-        }
-        // Same guess count, faster time wins
-        const timeA = a.timeToSolveMs || Infinity
-        const timeB = b.timeToSolveMs || Infinity
-        return timeA - timeB
-      }
-
-      // Both failed - rank by closeness score (higher = better), then by guess count
-      const closenessA = a.closenessScore ?? 0
-      const closenessB = b.closenessScore ?? 0
-      if (closenessA !== closenessB) {
-        return closenessB - closenessA // Higher closeness score ranks higher
-      }
-      // Same closeness, more guesses = better (they tried harder)
-      return b.guessCount - a.guessCount
-    })
-
-    // Assign ranks
-    allResultsList.forEach((r, index) => {
-      r.rank = index + 1
-    })
+    rankWordleResults(allResultsList)
 
     // Calculate achievements (only for solved attempts)
     const solvedResults = allResultsList.filter((r) => r.solved && r.timeToSolveMs !== undefined)

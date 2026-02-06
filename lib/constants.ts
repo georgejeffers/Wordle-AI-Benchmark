@@ -23,7 +23,7 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     modelString: "openai/gpt-5",
     temperature: 0.1,
     topP: 1,
-    enableThinking: true, // If GPT-5 supports reasoning
+    enableThinking: false,
   },
   {
     id: "gpt-5-mini",
@@ -33,13 +33,19 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     topP: 1,
   },
   {
+    id: "gpt-5-nano",
+    name: "GPT-5 Nano",
+    modelString: "openai/gpt-5-nano",
+    temperature: 0.1,
+    topP: 1,
+  },
+  {
     id: "gpt-5.1",
     name: "GPT-5.1",
     modelString: "openai/gpt-5.1",
     temperature: 0.1,
     topP: 1,
-    enableThinking: true,
-    reasoningEffort: "medium", // Default reasoning effort
+    enableThinking: false,
   },
   {
     id: "gpt-5.1-high",
@@ -74,8 +80,15 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     modelString: "openai/gpt-5.1",
     temperature: 0.1,
     topP: 1,
-    enableThinking: true,
-    reasoningEffort: "none",
+    enableThinking: false,
+  },
+  {
+    id: "gpt-5.2",
+    name: "GPT-5.2",
+    modelString: "openai/gpt-5.2",
+    temperature: 0.1,
+    topP: 1,
+    enableThinking: false,
   },
   {
     id: "gemini-2.5-flash",
@@ -83,7 +96,7 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     modelString: "google/gemini-2.5-flash",
     temperature: 0.1,
     topP: 1,
-    enableThinking: false, // A/B test: no thinking
+    enableThinking: false,
   },
   {
     id: "gemini-2.5-flash-thinking",
@@ -91,7 +104,7 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     modelString: "google/gemini-2.5-flash",
     temperature: 0.1,
     topP: 1,
-    enableThinking: true, // A/B test: with thinking
+    enableThinking: true,
   },
   {
     id: "gemini-2.5-pro",
@@ -99,7 +112,7 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     modelString: "google/gemini-2.5-pro",
     temperature: 0.1,
     topP: 1,
-    enableThinking: false, // A/B test: no thinking
+    enableThinking: false,
   },
   {
     id: "gemini-2.5-pro-thinking",
@@ -107,7 +120,7 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     modelString: "google/gemini-2.5-pro",
     temperature: 0.1,
     topP: 1,
-    enableThinking: true, // A/B test: with thinking
+    enableThinking: true,
   },
   {
     id: "gemini-3-pro-preview",
@@ -115,7 +128,7 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     modelString: "google/gemini-3-pro-preview",
     temperature: 0.1,
     topP: 1,
-    enableThinking: false, // A/B test: no thinking
+    enableThinking: false,
   },
   {
     id: "gemini-3-pro-preview-thinking",
@@ -123,8 +136,8 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     modelString: "google/gemini-3-pro-preview",
     temperature: 0.1,
     topP: 1,
-    enableThinking: true, // A/B test: with thinking
-    thinkingLevel: "medium", // Medium thinking level to prevent infinite loops
+    enableThinking: true,
+    reasoningEffort: "medium",
   },
   {
     id: "gemini-3-pro-preview-thinking-low",
@@ -132,126 +145,154 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     modelString: "google/gemini-3-pro-preview",
     temperature: 0.1,
     topP: 1,
-    enableThinking: true, // A/B test: with thinking
-    thinkingLevel: "low", // Low thinking level
+    enableThinking: true,
+    reasoningEffort: "low",
   },
   {
     id: "claude-haiku-4.5",
     name: "Claude Haiku 4.5",
-    modelString: "anthropic/claude-haiku-4-5",
+    modelString: "anthropic/claude-haiku-4.5",
     temperature: 0.1,
     topP: 1,
   },
   {
     id: "claude-sonnet-4.5",
     name: "Claude Sonnet 4.5",
-    modelString: "anthropic/claude-sonnet-4-5",
+    modelString: "anthropic/claude-sonnet-4.5",
     temperature: 0.1,
     topP: 1,
   },
   {
+    id: "claude-opus-4.6",
+    name: "Claude Opus 4.6",
+    modelString: "anthropic/claude-opus-4.6",
+    temperature: 0.1,
+    enableThinking: false,
+  },
+  {
+    id: "claude-opus-4.6-thinking",
+    name: "Claude Opus 4.6 (Thinking)",
+    modelString: "anthropic/claude-opus-4.6",
+    temperature: 0.1,
+    enableThinking: true,
+  },
+  {
+    id: "claude-opus-4.5",
+    name: "Claude Opus 4.5",
+    modelString: "anthropic/claude-opus-4.5",
+    temperature: 0.1,
+    enableThinking: false,
+  },
+  {
+    id: "claude-opus-4.5-thinking",
+    name: "Claude Opus 4.5 (Thinking)",
+    modelString: "anthropic/claude-opus-4.5",
+    temperature: 0.1,
+    enableThinking: true,
+  },
+  {
     id: "claude-opus-4",
     name: "Claude Opus 4",
-    modelString: "anthropic/claude-opus-4-20250514",
+    modelString: "anthropic/claude-opus-4",
     temperature: 0.1,
-    enableThinking: false, // A/B test: no thinking
+    enableThinking: false,
   },
   {
     id: "claude-opus-4-thinking",
     name: "Claude Opus 4 (Thinking)",
-    modelString: "anthropic/claude-opus-4-20250514",
+    modelString: "anthropic/claude-opus-4",
     temperature: 0.1,
-    enableThinking: true, // A/B test: with thinking
+    enableThinking: true,
   },
   {
     id: "claude-sonnet-4",
     name: "Claude Sonnet 4",
-    modelString: "anthropic/claude-sonnet-4-20250514",
+    modelString: "anthropic/claude-sonnet-4",
     temperature: 0.1,
-    enableThinking: false, // A/B test: no thinking
+    enableThinking: false,
   },
   {
     id: "claude-sonnet-4-thinking",
     name: "Claude Sonnet 4 (Thinking)",
-    modelString: "anthropic/claude-sonnet-4-20250514",
+    modelString: "anthropic/claude-sonnet-4",
     temperature: 0.1,
-    enableThinking: true, // A/B test: with thinking
+    enableThinking: true,
   },
   {
     id: "claude-3-7-sonnet",
     name: "Claude 3.7 Sonnet",
-    modelString: "anthropic/claude-3-7-sonnet-20250219",
+    modelString: "anthropic/claude-3.7-sonnet",
     temperature: 0.1,
-    enableThinking: false, // A/B test: no thinking
+    enableThinking: false,
   },
   {
     id: "claude-3-7-sonnet-thinking",
     name: "Claude 3.7 Sonnet (Thinking)",
-    modelString: "anthropic/claude-3-7-sonnet-20250219",
+    modelString: "anthropic/claude-3.7-sonnet",
     temperature: 0.1,
-    enableThinking: true, // A/B test: with thinking
+    enableThinking: true,
   },
   {
     id: "llama-3.3-70b",
-    name: "Llama 3.3 70B (Groq)",
-    modelString: "groq/llama-3.3-70b-versatile",
+    name: "Llama 3.3 70B",
+    modelString: "meta-llama/llama-3.3-70b-instruct",
     temperature: 0.1,
     topP: 1,
   },
   {
     id: "kimi-k2-0905",
-    name: "Kimi K2 0905 (Groq)",
-    modelString: "groq/moonshotai/kimi-k2-instruct-0905",
+    name: "Kimi K2 0905",
+    modelString: "moonshotai/kimi-k2-0905",
     temperature: 0.1,
     topP: 1,
   },
   {
     id: "qwen3-32b",
-    name: "Qwen3-32B (Groq)",
-    modelString: "groq/qwen/qwen3-32b",
+    name: "Qwen3-32B",
+    modelString: "qwen/qwen3-32b",
     temperature: 0.1,
     topP: 1,
-    enableThinking: false, // A/B test: no reasoning
+    enableThinking: false,
   },
   {
     id: "qwen3-32b-thinking",
-    name: "Qwen3-32B (Groq, Thinking)",
-    modelString: "groq/qwen/qwen3-32b",
+    name: "Qwen3-32B (Thinking)",
+    modelString: "qwen/qwen3-32b",
     temperature: 0.1,
     topP: 1,
-    enableThinking: true, // A/B test: with reasoning
+    enableThinking: true,
   },
   {
     id: "qwen-qwq-32b",
-    name: "Qwen QWQ-32B (Groq)",
-    modelString: "groq/qwen-qwq-32b",
+    name: "Qwen QWQ-32B",
+    modelString: "qwen/qwq-32b",
     temperature: 0.1,
     topP: 1,
-    enableThinking: false, // A/B test: no reasoning
+    enableThinking: false,
   },
   {
     id: "qwen-qwq-32b-thinking",
-    name: "Qwen QWQ-32B (Groq, Thinking)",
-    modelString: "groq/qwen-qwq-32b",
+    name: "Qwen QWQ-32B (Thinking)",
+    modelString: "qwen/qwq-32b",
     temperature: 0.1,
     topP: 1,
-    enableThinking: true, // A/B test: with reasoning
+    enableThinking: true,
   },
   {
     id: "deepseek-r1-distill-llama-70b",
-    name: "DeepSeek R1 Distill Llama 70B (Groq)",
-    modelString: "groq/deepseek-r1-distill-llama-70b",
+    name: "DeepSeek R1 Distill Llama 70B",
+    modelString: "deepseek/deepseek-r1-distill-llama-70b",
     temperature: 0.1,
     topP: 1,
-    enableThinking: false, // A/B test: no reasoning
+    enableThinking: false,
   },
   {
     id: "deepseek-r1-distill-llama-70b-thinking",
-    name: "DeepSeek R1 Distill Llama 70B (Groq, Thinking)",
-    modelString: "groq/deepseek-r1-distill-llama-70b",
+    name: "DeepSeek R1 Distill Llama 70B (Thinking)",
+    modelString: "deepseek/deepseek-r1-distill-llama-70b",
     temperature: 0.1,
     topP: 1,
-    enableThinking: true, // A/B test: with reasoning
+    enableThinking: true,
   },
   {
     id: "gpt-4.1-mini",
@@ -263,11 +304,13 @@ export const DEFAULT_MODELS: ModelConfig[] = [
   {
     id: "grok-4-fast",
     name: "Grok 4 Fast",
-    modelString: "xai/grok-4-fast-non-reasoning",
+    modelString: "x-ai/grok-4-fast",
     temperature: 0.1,
     topP: 1,
   },
 ]
+
+export const PUBLIC_MAX_MODELS = 3
 
 export const DEFAULT_MAX_TOKENS = 16
 export const DEFAULT_TIMEOUT_MS = 4000
@@ -280,11 +323,13 @@ export const MODEL_COLORS: Record<string, string> = {
   "o3-mini": "#ff8787", // lighter red (reasoning model)
   "gpt-5": "#10b981", // emerald
   "gpt-5-mini": "#06b6d4", // cyan
+  "gpt-5-nano": "#22d3ee", // lighter cyan
   "gpt-5.1": "#059669", // darker emerald
   "gpt-5.1-high": "#047857", // darkest emerald (high reasoning)
   "gpt-5.1-medium": "#059669", // darker emerald (medium reasoning)
   "gpt-5.1-low": "#10b981", // emerald (low reasoning)
   "gpt-5.1-none": "#34d399", // lighter emerald (no reasoning)
+  "gpt-5.2": "#0d9488", // teal-emerald
   "gemini-2.5-flash": "#4285f4", // google blue
   "gemini-2.5-flash-thinking": "#5a96ff", // lighter google blue (with thinking)
   "gemini-2.5-pro": "#1a73e8", // darker google blue
@@ -294,6 +339,10 @@ export const MODEL_COLORS: Record<string, string> = {
   "gemini-3-pro-preview-thinking-low": "#1976d2", // lighter google blue (with low thinking)
   "claude-haiku-4.5": "#a855f7", // purple
   "claude-sonnet-4.5": "#8b5cf6", // violet
+  "claude-opus-4.6": "#7e22ce", // deep purple (latest)
+  "claude-opus-4.6-thinking": "#9333ea", // purple (with thinking)
+  "claude-opus-4.5": "#8b22ce", // rich purple
+  "claude-opus-4.5-thinking": "#a033ea", // lighter purple (with thinking)
   "claude-opus-4": "#9333ea", // darker purple
   "claude-opus-4-thinking": "#a855f7", // purple (with thinking)
   "claude-sonnet-4": "#7c3aed", // indigo
@@ -312,47 +361,10 @@ export const MODEL_COLORS: Record<string, string> = {
   "grok-4-fast": "#00d4aa", // grok green/teal
 }
 
-// Models that support reasoning/thinking (OpenAI-style)
-export const REASONING_MODELS = new Set([
+// Models that don't support temperature/topP (reasoning-only models)
+export const NO_TEMPERATURE_MODELS = new Set([
   "o1",
   "o1-preview",
   "o1-mini",
   "o3-mini",
-  "gpt-5", // If GPT-5 supports reasoning
-  "gpt-5.1", // GPT-5.1 with reasoning
-  "gpt-5.1-high", // GPT-5.1 with high reasoning effort
-  "gpt-5.1-medium", // GPT-5.1 with medium reasoning effort
-  "gpt-5.1-low", // GPT-5.1 with low reasoning effort
-  "gpt-5.1-none", // GPT-5.1 with no reasoning effort
-])
-
-// Models that support thinking (Google-style with thinkingConfig)
-export const THINKING_CAPABLE_MODELS = new Set([
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-thinking",
-  "gemini-2.5-pro",
-  "gemini-2.5-pro-thinking",
-  "gemini-3-pro-preview",
-  "gemini-3-pro-preview-thinking",
-  "gemini-3-pro-preview-thinking-low",
-])
-
-// Models that support reasoning (Anthropic-style with thinking provider option)
-export const ANTHROPIC_REASONING_MODELS = new Set([
-  "claude-opus-4",
-  "claude-opus-4-thinking",
-  "claude-sonnet-4",
-  "claude-sonnet-4-thinking",
-  "claude-3-7-sonnet",
-  "claude-3-7-sonnet-thinking",
-])
-
-// Models that support reasoning (Groq-style with reasoningFormat provider option)
-export const GROQ_REASONING_MODELS = new Set([
-  "qwen3-32b",
-  "qwen3-32b-thinking",
-  "qwen-qwq-32b",
-  "qwen-qwq-32b-thinking",
-  "deepseek-r1-distill-llama-70b",
-  "deepseek-r1-distill-llama-70b-thinking",
 ])

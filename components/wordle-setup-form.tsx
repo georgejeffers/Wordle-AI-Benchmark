@@ -32,6 +32,15 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
   const [customEntries, setCustomEntries] = useState<CustomEntry[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<CustomEntry | null>(null)
+  const [maxModels, setMaxModels] = useState<number | null>(null)
+
+  // Fetch config to know model cap
+  useEffect(() => {
+    fetch("/api/config")
+      .then((res) => res.json())
+      .then((data) => setMaxModels(data.maxModels ?? null))
+      .catch(() => {})
+  }, [])
 
   // Load custom entries on mount
   useEffect(() => {
@@ -39,13 +48,21 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
   }, [])
 
   // Load selected models from localStorage after mount (client-side only)
+  // Re-run when maxModels changes to clamp if needed
   useEffect(() => {
     const saved = getSelectedModels()
-    // If we have saved models, use them; otherwise keep default (all models)
     if (saved.length > 0) {
-      setSelectedModels(saved)
+      // Clamp to maxModels if restricted
+      if (maxModels !== null && saved.length > maxModels) {
+        setSelectedModels(saved.slice(0, maxModels))
+      } else {
+        setSelectedModels(saved)
+      }
+    } else if (maxModels !== null) {
+      // Default selection capped to maxModels
+      setSelectedModels(DEFAULT_MODELS.slice(0, maxModels).map((m) => m.id))
     }
-  }, [])
+  }, [maxModels])
 
   // Save selected models to localStorage whenever they change
   useEffect(() => {
@@ -113,8 +130,12 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
     }
   }
 
+  const totalSelected = selectedModels.length + selectedCustomEntries.length
+
   const toggleModel = (modelId: string) => {
     const wasSelected = selectedModels.includes(modelId)
+    // Enforce cap when adding
+    if (!wasSelected && maxModels !== null && totalSelected >= maxModels) return
     const newSelection = wasSelected
       ? selectedModels.filter((id) => id !== modelId)
       : [...selectedModels, modelId]
@@ -131,7 +152,12 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
   }
 
   const selectAllModels = () => {
-    setSelectedModels(DEFAULT_MODELS.map((m) => m.id))
+    if (maxModels !== null) {
+      const available = maxModels - selectedCustomEntries.length
+      setSelectedModels(DEFAULT_MODELS.slice(0, Math.max(0, available)).map((m) => m.id))
+    } else {
+      setSelectedModels(DEFAULT_MODELS.map((m) => m.id))
+    }
   }
 
   const deselectAllModels = () => {
@@ -141,9 +167,12 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
   }
 
   const toggleCustomEntry = (entryId: string) => {
-    setSelectedCustomEntries((prev) =>
-      prev.includes(entryId) ? prev.filter((id) => id !== entryId) : [...prev, entryId]
-    )
+    setSelectedCustomEntries((prev) => {
+      if (prev.includes(entryId)) return prev.filter((id) => id !== entryId)
+      // Enforce cap when adding
+      if (maxModels !== null && totalSelected >= maxModels) return prev
+      return [...prev, entryId]
+    })
   }
 
   const handleCreateCustom = () => {
@@ -260,7 +289,7 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-foreground">
-              Select Models ({selectedModels.length}/{DEFAULT_MODELS.length})
+              Select Models ({totalSelected}{maxModels !== null ? `/${maxModels}` : `/${DEFAULT_MODELS.length}`})
             </Label>
             <div className="flex items-center gap-2">
               <Button
@@ -290,17 +319,22 @@ export function WordleSetupForm({ onStart, isRunning }: WordleSetupFormProps) {
               <button
                 key={model.id}
                 onClick={() => toggleModel(model.id)}
-                disabled={isRunning}
+                disabled={isRunning || (!selectedModels.includes(model.id) && maxModels !== null && totalSelected >= maxModels)}
                 className={`p-2 rounded-lg border text-sm transition-all ${
                   selectedModels.includes(model.id)
                     ? "border-primary bg-primary/10 text-foreground"
                     : "border-border bg-muted text-muted-foreground hover:border-primary/50"
-                }`}
+                } ${!selectedModels.includes(model.id) && maxModels !== null && totalSelected >= maxModels ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {model.name}
               </button>
             ))}
           </div>
+          {maxModels !== null && (
+            <p className="text-xs text-muted-foreground">
+              Public demo limited to {maxModels} models per race. Clone the repo and set UNRESTRICTED=true for unlimited access.
+            </p>
+          )}
         </div>
 
         {/* Custom Entries */}

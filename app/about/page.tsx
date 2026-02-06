@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
 export const metadata = {
-  title: "About - Crossword Sprint AI",
+  title: "About WordleBench - How AI Models Are Benchmarked",
   description:
-    "Learn how Crossword Sprint AI benchmarks language models in real-time using Server-Sent Events and parallel AI execution.",
+    "Learn how WordleBench tests 34+ AI models on Wordle using deterministic conditions, real-time streaming, and parallel execution. Methodology, scoring, and technical architecture.",
+  alternates: {
+    canonical: "https://wordlebench.ginger.sh/about",
+  },
 }
 
 export default function AboutPage() {
@@ -316,6 +319,10 @@ Your next guess (output only the 5-letter word):`}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div>
                 <p className="text-foreground font-medium mb-1">Built by George Jefferson</p>
+                <p className="text-muted-foreground text-sm">
+                  Sponsored by{" "}
+                  <a href="https://x.com/artfreebrey" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">Art Freebrey</a>
+                </p>
               </div>
               <Button asChild variant="outline" size="sm">
                 <a href="https://x.com/GeorgeJeffersn" target="_blank" rel="noopener noreferrer">
@@ -325,6 +332,14 @@ Your next guess (output only the 5-letter word):`}
                   Follow on X
                 </a>
               </Button>
+            </div>
+            <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="text-muted-foreground text-xs">Related:</span>
+              <a href="https://ginger.sh/" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Ginger</a>
+              <a href="https://artomate.app/" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Artomate</a>
+              <a href="https://resold.app/" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Resold</a>
+              <a href="https://vinta.app/" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Vinta</a>
+              <a href="https://revnu.app/" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Revnu</a>
             </div>
           </CardContent>
         </Card>
