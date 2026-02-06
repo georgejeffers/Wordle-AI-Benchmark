@@ -39,9 +39,9 @@ export function BenchmarkBarChart({
   return (
     <Card className="bg-card/50 backdrop-blur border-border">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-foreground">
-          {icon}
-          {title}
+        <CardTitle className="flex items-start sm:items-center gap-2 text-foreground text-sm sm:text-base">
+          <span className="flex-shrink-0 mt-0.5 sm:mt-0">{icon}</span>
+          <span>{title}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">

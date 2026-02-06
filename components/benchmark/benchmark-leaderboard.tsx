@@ -100,13 +100,13 @@ export function BenchmarkLeaderboard({ leaderboard, models }: BenchmarkLeaderboa
       </CardHeader>
       <CardContent>
         {/* Table header */}
-        <div className="grid grid-cols-[3rem_1fr_5rem_5rem_5rem_5rem_5rem] gap-2 pb-2 border-b border-border mb-2">
+        <div className="grid grid-cols-[2rem_1fr_3.5rem_3.5rem_3.5rem] sm:grid-cols-[3rem_1fr_5rem_5rem_5rem_5rem_5rem] gap-2 pb-2 border-b border-border mb-2">
           <SortHeader label="#" colKey="rank" />
           <span className="text-xs font-medium text-muted-foreground">Model</span>
           <SortHeader label="Win %" colKey="winRate" />
           <SortHeader label="Guesses" colKey="avgGuesses" />
-          <SortHeader label="Time" colKey="medianTimeMs" />
-          <SortHeader label="Tokens" colKey="tokens" />
+          <SortHeader label="Time" colKey="medianTimeMs" className="hidden sm:flex" />
+          <SortHeader label="Tokens" colKey="tokens" className="hidden sm:flex" />
           <SortHeader label="Score" colKey="score" />
         </div>
 
@@ -121,7 +121,7 @@ export function BenchmarkLeaderboard({ leaderboard, models }: BenchmarkLeaderboa
               <div key={entry.modelId}>
                 <button
                   onClick={() => setExpandedModel(isExpanded ? null : entry.modelId)}
-                  className="w-full grid grid-cols-[3rem_1fr_5rem_5rem_5rem_5rem_5rem] gap-2 items-center py-2 px-1 rounded hover:bg-muted/50 transition-colors text-left"
+                  className="w-full grid grid-cols-[2rem_1fr_3.5rem_3.5rem_3.5rem] sm:grid-cols-[3rem_1fr_5rem_5rem_5rem_5rem_5rem] gap-2 items-center py-2 px-1 rounded hover:bg-muted/50 transition-colors text-left"
                 >
                   <div>{getRankBadge(entry.rank)}</div>
                   <div className="flex items-center gap-2 min-w-0">
@@ -143,10 +143,10 @@ export function BenchmarkLeaderboard({ leaderboard, models }: BenchmarkLeaderboa
                   <div className="text-sm text-foreground font-mono">
                     {entry.avgGuesses != null ? entry.avgGuesses.toFixed(2) : "-"}
                   </div>
-                  <div className="text-sm text-foreground font-mono">
+                  <div className="hidden sm:block text-sm text-foreground font-mono">
                     {entry.medianTimeMs != null && entry.medianTimeMs > 0 ? `${(entry.medianTimeMs / 1000).toFixed(1)}s` : "-"}
                   </div>
-                  <div className="text-sm text-foreground font-mono text-xs">
+                  <div className="hidden sm:block text-sm text-foreground font-mono text-xs">
                     {modelData?.stats.totalTokens
                       ? `${(modelData.stats.totalTokens / 1000).toFixed(0)}k`
                       : "-"
@@ -159,7 +159,7 @@ export function BenchmarkLeaderboard({ leaderboard, models }: BenchmarkLeaderboa
 
                 {/* Expanded details */}
                 {isExpanded && modelData && (
-                  <div className="ml-12 mr-2 mb-3 p-4 rounded-lg bg-muted/30 border border-border space-y-4">
+                  <div className="ml-4 sm:ml-12 mr-2 mb-3 p-3 sm:p-4 rounded-lg bg-muted/30 border border-border space-y-4">
                     {/* Guess distribution */}
                     <div>
                       <h4 className="text-xs font-medium text-muted-foreground mb-2">

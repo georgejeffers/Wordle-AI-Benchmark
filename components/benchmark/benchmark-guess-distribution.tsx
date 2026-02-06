@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BarChart3 } from "lucide-react"
 import { getModelColor } from "@/lib/benchmark-data"
@@ -14,6 +15,18 @@ import {
   ResponsiveContainer,
 } from "recharts"
 
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
+    setIsMobile(mql.matches)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mql.addEventListener("change", handler)
+    return () => mql.removeEventListener("change", handler)
+  }, [breakpoint])
+  return isMobile
+}
+
 interface BenchmarkGuessDistributionProps {
   models: BenchmarkModelResult[]
   topN?: number
@@ -23,11 +36,14 @@ export function BenchmarkGuessDistribution({
   models,
   topN = 8,
 }: BenchmarkGuessDistributionProps) {
+  const isMobile = useIsMobile()
+  const effectiveTopN = isMobile ? Math.min(topN, 5) : topN
+
   // Take top N models by win rate
   const topModels = [...models]
     .filter((m) => m.stats.winRate > 0)
     .sort((a, b) => b.stats.winRate - a.stats.winRate)
-    .slice(0, topN)
+    .slice(0, effectiveTopN)
 
   if (topModels.length === 0) return null
 
@@ -85,7 +101,8 @@ export function BenchmarkGuessDistribution({
               }}
             />
             <Legend
-              wrapperStyle={{ fontSize: 11 }}
+              wrapperStyle={{ fontSize: 10, lineHeight: '1.6', paddingTop: 8 }}
+              iconSize={8}
             />
             {topModels.map((model) => (
               <Bar
