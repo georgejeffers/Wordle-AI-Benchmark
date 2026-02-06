@@ -76,9 +76,21 @@ export function BenchmarkLeaderboard({ leaderboard, models }: BenchmarkLeaderboa
   )
 
   const getRankBadge = (rank: number) => {
-    if (rank === 1) return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">1st</Badge>
-    if (rank === 2) return <Badge className="bg-gray-400/20 text-gray-400 border-gray-400/30">2nd</Badge>
-    if (rank === 3) return <Badge className="bg-amber-600/20 text-amber-600 border-amber-600/30">3rd</Badge>
+    if (rank <= 3) {
+      const styles = {
+        1: "bg-yellow-500/20 text-yellow-500 border-yellow-500/30",
+        2: "bg-gray-400/20 text-gray-400 border-gray-400/30",
+        3: "bg-amber-600/20 text-amber-600 border-amber-600/30",
+      }[rank]!
+      const labels = { 1: "1st", 2: "2nd", 3: "3rd" }[rank]!
+      const colors = { 1: "text-yellow-500", 2: "text-gray-400", 3: "text-amber-600" }[rank]!
+      return (
+        <>
+          <Badge className={cn("hidden sm:inline-flex", styles)}>{labels}</Badge>
+          <span className={cn("sm:hidden text-xs font-bold", colors)}>#{rank}</span>
+        </>
+      )
+    }
     return <span className="text-muted-foreground text-xs sm:text-sm">#{rank}</span>
   }
 
