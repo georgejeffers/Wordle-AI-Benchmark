@@ -191,6 +191,20 @@ export const DEFAULT_MODELS: ModelConfig[] = [
     enableThinking: true,
   },
   {
+    id: "claude-opus-4.1",
+    name: "Claude Opus 4.1",
+    modelString: "anthropic/claude-opus-4.1",
+    temperature: 0.1,
+    enableThinking: false,
+  },
+  {
+    id: "claude-opus-4.1-thinking",
+    name: "Claude Opus 4.1 (Thinking)",
+    modelString: "anthropic/claude-opus-4.1",
+    temperature: 0.1,
+    enableThinking: true,
+  },
+  {
     id: "claude-opus-4",
     name: "Claude Opus 4",
     modelString: "anthropic/claude-opus-4",
@@ -343,6 +357,8 @@ export const MODEL_COLORS: Record<string, string> = {
   "claude-opus-4.6-thinking": "#9333ea", // purple (with thinking)
   "claude-opus-4.5": "#8b22ce", // rich purple
   "claude-opus-4.5-thinking": "#a033ea", // lighter purple (with thinking)
+  "claude-opus-4.1": "#6b21a8", // deep violet
+  "claude-opus-4.1-thinking": "#7c3aed", // violet (with thinking)
   "claude-opus-4": "#9333ea", // darker purple
   "claude-opus-4-thinking": "#a855f7", // purple (with thinking)
   "claude-sonnet-4": "#7c3aed", // indigo
