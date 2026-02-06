@@ -79,7 +79,7 @@ export function BenchmarkLeaderboard({ leaderboard, models }: BenchmarkLeaderboa
     if (rank === 1) return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">1st</Badge>
     if (rank === 2) return <Badge className="bg-gray-400/20 text-gray-400 border-gray-400/30">2nd</Badge>
     if (rank === 3) return <Badge className="bg-amber-600/20 text-amber-600 border-amber-600/30">3rd</Badge>
-    return <span className="text-muted-foreground text-sm">#{rank}</span>
+    return <span className="text-muted-foreground text-xs sm:text-sm">#{rank}</span>
   }
 
   return (
@@ -100,14 +100,17 @@ export function BenchmarkLeaderboard({ leaderboard, models }: BenchmarkLeaderboa
       </CardHeader>
       <CardContent>
         {/* Table header */}
-        <div className="grid grid-cols-[2rem_1fr_3.5rem_3.5rem_3.5rem] sm:grid-cols-[3rem_1fr_5rem_5rem_5rem_5rem_5rem] gap-2 pb-2 border-b border-border mb-2">
+        <div className="grid grid-cols-[1.25rem_1fr_2.5rem_2.5rem_2.5rem] sm:grid-cols-[3rem_1fr_5rem_5rem_5rem_5rem_5rem] gap-1.5 sm:gap-2 pb-2 border-b border-border mb-2">
           <SortHeader label="#" colKey="rank" />
           <span className="text-xs font-medium text-muted-foreground">Model</span>
-          <SortHeader label="Win %" colKey="winRate" />
-          <SortHeader label="Guesses" colKey="avgGuesses" />
+          <SortHeader label="Win" colKey="winRate" className="sm:hidden" />
+          <SortHeader label="Win %" colKey="winRate" className="hidden sm:flex" />
+          <SortHeader label="Avg" colKey="avgGuesses" className="sm:hidden" />
+          <SortHeader label="Guesses" colKey="avgGuesses" className="hidden sm:flex" />
           <SortHeader label="Time" colKey="medianTimeMs" className="hidden sm:flex" />
           <SortHeader label="Tokens" colKey="tokens" className="hidden sm:flex" />
-          <SortHeader label="Score" colKey="score" />
+          <SortHeader label="Sc." colKey="score" className="sm:hidden" />
+          <SortHeader label="Score" colKey="score" className="hidden sm:flex" />
         </div>
 
         {/* Table rows */}
@@ -121,15 +124,15 @@ export function BenchmarkLeaderboard({ leaderboard, models }: BenchmarkLeaderboa
               <div key={entry.modelId}>
                 <button
                   onClick={() => setExpandedModel(isExpanded ? null : entry.modelId)}
-                  className="w-full grid grid-cols-[2rem_1fr_3.5rem_3.5rem_3.5rem] sm:grid-cols-[3rem_1fr_5rem_5rem_5rem_5rem_5rem] gap-2 items-center py-2 px-1 rounded hover:bg-muted/50 transition-colors text-left"
+                  className="w-full grid grid-cols-[1.25rem_1fr_2.5rem_2.5rem_2.5rem] sm:grid-cols-[3rem_1fr_5rem_5rem_5rem_5rem_5rem] gap-1.5 sm:gap-2 items-center py-2 px-1 rounded hover:bg-muted/50 transition-colors text-left"
                 >
                   <div>{getRankBadge(entry.rank)}</div>
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                     <div
                       className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{ backgroundColor: color }}
                     />
-                    <span className="text-sm font-medium text-foreground truncate">
+                    <span className="text-xs sm:text-sm font-medium text-foreground break-words line-clamp-2 sm:truncate">
                       {entry.modelName}
                     </span>
                     {isExpanded
@@ -137,10 +140,10 @@ export function BenchmarkLeaderboard({ leaderboard, models }: BenchmarkLeaderboa
                       : <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                     }
                   </div>
-                  <div className="text-sm text-foreground font-mono">
+                  <div className="text-xs sm:text-sm text-foreground font-mono">
                     {entry.winRate != null ? `${entry.winRate.toFixed(0)}%` : "-"}
                   </div>
-                  <div className="text-sm text-foreground font-mono">
+                  <div className="text-xs sm:text-sm text-foreground font-mono">
                     {entry.avgGuesses != null ? entry.avgGuesses.toFixed(2) : "-"}
                   </div>
                   <div className="hidden sm:block text-sm text-foreground font-mono">
@@ -152,7 +155,7 @@ export function BenchmarkLeaderboard({ leaderboard, models }: BenchmarkLeaderboa
                       : "-"
                     }
                   </div>
-                  <div className="text-sm font-bold font-mono" style={{ color }}>
+                  <div className="text-xs sm:text-sm font-bold font-mono" style={{ color }}>
                     {entry.score != null ? entry.score.toFixed(1) : "-"}
                   </div>
                 </button>
